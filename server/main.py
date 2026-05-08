@@ -4,12 +4,14 @@ from __future__ import annotations
 import json
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from server.mimo import CHAT_MODELS, MIMO_BASE_URL
@@ -61,6 +63,8 @@ async def health() -> dict[str, str]:
 async def list_models() -> dict[str, list[dict[str, str]]]:
     return {"data": [{"id": m, "object": "model", "owned_by": "xiaomi"} for m in CHAT_MODELS]}
 
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 _SSE_HEADERS = {
     "Cache-Control": "no-cache",
@@ -116,3 +120,11 @@ def json_str(b: bytes) -> str:
         return json.dumps(b.decode("utf-8", errors="replace"))
     except Exception:
         return json.dumps(repr(b))
+
+
+app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> FileResponse:
+    return FileResponse(WEB_DIR / "index.html")
