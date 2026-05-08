@@ -58,3 +58,37 @@ Nginx 端只需改 `/etc/nginx/sites-available/aiic.fomalhaut647.com` 中的 `lo
   - `MIMO_API_KEY` — MiMo 大模型 API key
 - **加载方式**：使用 `python-dotenv`（已加入 `pixi.toml` 依赖，约束 `>=1.2.2,<2`）。代码中通过 `from dotenv import load_dotenv; load_dotenv()` 后用 `os.environ["MIMO_API_KEY"]` 读取
 - **新增 secret 流程**：直接写入 `.env`（无需改 `.gitignore`），并在本节末尾追加一行说明该变量用途
+
+## 项目准备说明（2026-05-07 主办方下发）
+
+> 原始 PDF 已删除，转写见 `2026-05-07_项目准备说明.md`（由 PyMuPDF 抽取）。下面为要点速览，全文以 `.md` 为准。
+
+### 关键时间点
+- **项目开始**：2026-05-10（周日）08:00 公布题目
+- **截止后构建/部署 = 超时完成**（主办方会通过 SSH 登录核验部署时间）
+
+### 必备清单
+1. **AI Coding 工具**：Claude Code / GPT Codex / Cursor / Kimi Code 等任选，确认额度充足
+2. **GitHub 账号**：项目仓库**必须 public**，会查代码与 commit 记录
+3. **公网可访问的云服务器**：已具备 —— 见上文「服务器」章节（腾讯云新加坡，`https://aiic.fomalhaut647.com`）
+4. **LLM API Keys**：OpenAI / OpenRouter / MiMo 等任选；当前已有 `MIMO_API_KEY`（见上节）
+5. **音视频 API**（可选）：火山引擎多模态等，参考 `https://www.volcengine.com/docs/6561/1354845`
+6. **录屏/剪辑工具**（可选）：Demo 视频 ≤3 分钟，剪映即可
+7. 其他常用工具（外网访问、设计等）
+
+### 主办方 SSH 公钥（必须部署到 `43.156.109.192` 的 `~ubuntu/.ssh/authorized_keys`）
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDuSpd2QiAYU0Er1upObsQitqG5JQ3senYa2imOvcDQl lbh@MacBookPro.local
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICsR0FbL2EzGpR8FytEKni4UFIznz8XiT+xHnX2puF/M di@Dis-MacBook-Air.local
+```
+
+主办方需通过 SSH 登录核验运行环境与部署时间，**这两把 key 务必在 5/10 之前添加完毕**。
+
+### 提交清单
+- 公网可访问的 URL（一个能调用指定模型 + Prompt 完成文本/语音对话的网页）
+- GitHub public 仓库（含完整 commit 记录）
+- ≤3 分钟 Demo 视频（说明设计思路 + 演示产品）
+
+### 报销
+- 上限 **¥150**（必备工具），需提供 invoice 或截图说明

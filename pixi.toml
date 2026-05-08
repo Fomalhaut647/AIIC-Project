@@ -9,3 +9,4 @@ version = "0.1.0"
 
 [dependencies]
 python-dotenv = ">=1.2.2,<2"
+pymupdf = ">=1.27.2.2,<2"
