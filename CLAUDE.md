@@ -57,6 +57,11 @@ Nginx 端只需改 `/etc/nginx/sites-available/aiic.fomalhaut647.com` 中的 `lo
 - **`http2 on;` 独立指令是 Nginx 1.25+ 才有的语法**；本机 1.24 必须用旧式 `listen 443 ssl http2;`。修改 site 配置时不要回归到新语法
 - **本地公网 IP 探测要带 `-4`**：`curl -s ifconfig.me` 默认可能返回 IPv6，但 DNS A 记录是 IPv4，验证时用 `curl -s -4 ifconfig.me` 才对得上
 - **临时解压证书后必须清理**：本次部署在 `/tmp/aiic_ssl_extract/` 留过私钥副本，部署完已 `rm -rf` 清理；后续若再次解压务必同样处理
+- **MiMo `mimo-v2.5-pro` SSE 双流**：每个 chunk 的 `choices[0].delta` 同时可能含 `reasoning_content`（思维链）与 `content`（最终回复）。前端**只渲染 `content`**，不显示 reasoning（避免泄露 CoT）；未来"修 bug 把 reasoning 也拼上去"是错误方向
+- **httpx 测试 mock 流式响应必须用 `stream=AsyncByteStream(body)`**：`httpx.Response(200, content=bytes_body)` 在 `__init__` 立即 read，使 `aiter_raw()` 抛 `StreamConsumed`。见 `tests/test_chat_streaming.py` 的 `_SSEStream` helper —— 这是绕坑，不是风格
+- **`TestClient(app)` 不触发 lifespan**：要用 `app.state.*`（如 `http_client`）的测试 fixture 必须用 `with TestClient(app) as c: yield c`。见 `tests/conftest.py`
+- **`httpx.InvalidURL` 不继承 `httpx.HTTPError`**：`server/main.py` 的 `event_stream` generator 兜底用 `except Exception` 是有意的—— InvalidURL / 任何意外异常都必须转 SSE error frame，否则 HTTP 200 已发出后 generator 抛异常会让客户端收到 truncated stream 无 error 帧
+- **Basic Auth 口令绝不入 repo（含 commit history）**：public 仓库要求决定了任何写进 CLAUDE.md / spec / plan / commit message 的明文密码 = 公开。口令仅在 `/etc/nginx/.htpasswd_aiic` 存在；告知主办方走 IM 渠道。本次曾误入两个 commit 后用 `git filter-branch` 全历史 sed-replace `<REDACTED>` 清除（必要时可复用同样方法）
 
 ## 环境约定
 
