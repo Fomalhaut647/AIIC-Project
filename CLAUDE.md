@@ -41,6 +41,17 @@ Nginx 端只需改 `/etc/nginx/sites-available/aiic.fomalhaut647.com` 中的 `lo
 
 改完执行 `sudo nginx -t && sudo systemctl reload nginx`。
 
+## Web Chat 应用部署（v1）
+
+- **代码**：`server/`（FastAPI + httpx 流式代理）+ `web/`（vanilla JS 单页）
+- **systemd 服务**：`aiic-chat.service`（监听 `127.0.0.1:8000`），unit 模板见 `deploy/aiic-chat.service`
+- **本地启动**：`pixi run serve`（带 reload）或 `pixi run serve-prod`
+- **测试**：`pixi run test`
+- **Nginx**：`/etc/nginx/sites-available/aiic.fomalhaut647.com` 已改 `location /` 反代到 :8000，`proxy_buffering off` 透传 SSE。模板见 `deploy/nginx-aiic.location.conf`
+- **Basic Auth**：`/etc/nginx/.htpasswd_aiic`（属主 `root:www-data` 模式 `640`，**禁止 commit**）。当前凭据：`aiic / <REDACTED>`，更换走 `sudo htpasswd /etc/nginx/.htpasswd_aiic <user>`
+- **MiMo 上游**：OpenAI 兼容协议 `https://token-plan-cn.xiaomimimo.com/v1`，Bearer key 见 `.env`
+- **可用 chat 模型白名单**：`mimo-v2.5-pro`、`mimo-v2.5`、`mimo-v2-pro`、`mimo-v2-omni`（在 `server/mimo.py` 维护）
+
 ## Gotchas（避免下次踩坑）
 
 - **`http2 on;` 独立指令是 Nginx 1.25+ 才有的语法**；本机 1.24 必须用旧式 `listen 443 ssl http2;`。修改 site 配置时不要回归到新语法
