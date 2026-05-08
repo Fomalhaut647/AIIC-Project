@@ -1,3 +1,11 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# Sensitive: never commit certs / keys / archives that may contain them
+*.zip
+*.key
+*.crt
+*.pem
+*.pfx
+*.p12

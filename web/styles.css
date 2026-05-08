@@ -33,3 +33,12 @@ body { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
 #send:hover { background: #1d4ed8; }
 #send.stop { background: #dc2626; }
 #send.stop:hover { background: #b91c1c; }
+
+@media (max-width: 640px) {
+  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  #sidebar { grid-row: 1; max-height: 40vh; }
+  #main { grid-row: 2; height: auto; }
+  #messages { padding: 12px; }
+  .msg { max-width: 95%; font-size: 14px; }
+  #composer { padding: 8px; }
+}

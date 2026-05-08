@@ -8,8 +8,12 @@ def test_root_serves_index_html(client: TestClient):
     assert "AIIC MiMo Chat" in resp.text
 
 
-def test_static_app_js_served(client: TestClient, tmp_path, monkeypatch):
-    # 真实从 web/ 提供
+def test_static_styles_css_served(client: TestClient):
     resp = client.get("/static/styles.css")
-    # 文件可能不存在还，但路由必须挂上 → 不存在则返回 404；存在则 200
-    assert resp.status_code in (200, 404)
+    assert resp.status_code == 200
+    assert "text/css" in resp.headers.get("content-type", "") or resp.headers.get("content-type", "").startswith("text/")
+
+
+def test_static_app_js_served(client: TestClient):
+    resp = client.get("/static/app.js")
+    assert resp.status_code == 200

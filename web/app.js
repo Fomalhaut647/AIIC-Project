@@ -49,6 +49,10 @@ function deleteConv(id) {
   if (state.activeId === id) {
     state.activeId = state.conversations[0]?.id || null;
   }
+  if (state.conversations.length === 0) {
+    newConv();
+    return;
+  }
   saveState();
   renderAll();
 }
@@ -117,7 +121,7 @@ function renderMessages() {
   for (const m of conv.messages) {
     box.appendChild(renderMsg(m));
   }
-  scrollToBottom();
+  scrollToBottom(true);
 }
 
 function renderMsg(m) {
@@ -138,9 +142,11 @@ function renderTitle() {
   if (conv) picker.value = conv.model;
 }
 
-function scrollToBottom() {
+function scrollToBottom(force = false) {
   const box = document.getElementById("messages");
-  box.scrollTop = box.scrollHeight;
+  const threshold = 80;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight <= threshold;
+  if (force || atBottom) box.scrollTop = box.scrollHeight;
 }
 
 // ---------- model picker ----------
@@ -192,7 +198,7 @@ async function send() {
   const box = document.getElementById("messages");
   const msgEl = renderMsg(assistantMsg);
   box.appendChild(msgEl);
-  scrollToBottom();
+  scrollToBottom(true);
 
   setSending(true);
   abortCtl = new AbortController();
@@ -214,6 +220,7 @@ async function send() {
     const decoder = new TextDecoder();
     let buffer = "";
 
+    let sseError = false;
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -222,8 +229,11 @@ async function send() {
       while ((idx = buffer.indexOf("\n\n")) >= 0) {
         const event = buffer.slice(0, idx);
         buffer = buffer.slice(idx + 2);
-        handleSseEvent(event, assistantMsg, msgEl);
+        if (handleSseEvent(event, assistantMsg, msgEl)) sseError = true;
       }
+    }
+    if (sseError) {
+      conv.messages.pop();
     }
   } catch (err) {
     if (err.name === "AbortError") {
@@ -257,15 +267,13 @@ function handleSseEvent(eventText, assistantMsg, msgEl) {
     if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
   }
   const data = dataLines.join("\n");
-  if (!data) return;
+  if (!data) return false;
   if (isError) {
-    assistantMsg.content += `\n\n[错误] ${data}`;
     msgEl.classList.add("error");
-    if (window.marked) msgEl.innerHTML = window.marked.parse(assistantMsg.content);
-    else msgEl.textContent = assistantMsg.content;
-    return;
+    msgEl.textContent = `[错误] ${data}`;
+    return true;
   }
-  if (data === "[DONE]") return;
+  if (data === "[DONE]") return false;
   try {
     const obj = JSON.parse(data);
     const delta = obj.choices?.[0]?.delta?.content || "";
@@ -278,6 +286,7 @@ function handleSseEvent(eventText, assistantMsg, msgEl) {
   } catch (e) {
     // 非 JSON data 行（如心跳），忽略
   }
+  return false;
 }
 
 function setSending(sending) {
