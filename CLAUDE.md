@@ -51,3 +51,10 @@ Nginx 端只需改 `/etc/nginx/sites-available/aiic.fomalhaut647.com` 中的 `lo
 
 - Python 环境用 **Pixi**（`pixi install` / `pixi run <task>`），不要混用 venv / conda
 - 项目作者：Fomalhaut647 `<fomalhaut@stu.pku.edu.cn>`
+
+## 密钥与配置
+
+- **`.env`**：项目根目录的 `.env` 存放敏感配置，由用户级 gitignore（`~/.gitignore_global` 第 248 行 `.env`）兜底屏蔽，**禁止 commit**。当前包含：
+  - `MIMO_API_KEY` — MiMo 大模型 API key
+- **加载方式**：使用 `python-dotenv`（已加入 `pixi.toml` 依赖，约束 `>=1.2.2,<2`）。代码中通过 `from dotenv import load_dotenv; load_dotenv()` 后用 `os.environ["MIMO_API_KEY"]` 读取
+- **新增 secret 流程**：直接写入 `.env`（无需改 `.gitignore`），并在本节末尾追加一行说明该变量用途
