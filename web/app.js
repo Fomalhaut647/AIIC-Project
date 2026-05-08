@@ -20,7 +20,11 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("saveState failed (quota?)", e);
+  }
 }
 
 function activeConv() {
@@ -61,6 +65,7 @@ function switchConv(id) {
   state.activeId = id;
   saveState();
   renderAll();
+  setSending(abortCtl !== null);
 }
 
 // ---------- rendering ----------
@@ -226,9 +231,12 @@ async function send() {
     } else {
       console.error(err);
       conv.messages.pop();
-      conv.messages.push({ role: "error", content: String(err.message || err) });
-      renderMessages();
       saveState();
+      const errEl = document.createElement("div");
+      errEl.className = "msg error";
+      errEl.textContent = String(err.message || err);
+      document.getElementById("messages").appendChild(errEl);
+      scrollToBottom();
       setSending(false);
       return;
     }
@@ -237,7 +245,6 @@ async function send() {
   }
 
   saveState();
-  renderMsg(assistantMsg);
   if (window.marked) msgEl.innerHTML = window.marked.parse(assistantMsg.content || "");
   setSending(false);
 }
@@ -246,7 +253,7 @@ function handleSseEvent(eventText, assistantMsg, msgEl) {
   let isError = false;
   let dataLines = [];
   for (const line of eventText.split("\n")) {
-    if (line.startsWith("event:") && line.includes("error")) isError = true;
+    if (line.startsWith("event:") && line.slice(6).trim() === "error") isError = true;
     if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
   }
   const data = dataLines.join("\n");
@@ -303,7 +310,20 @@ document.getElementById("input").addEventListener("keydown", (e) => {
 
 // ---------- init ----------
 (async function init() {
-  await loadModels();
+  try {
+    await loadModels();
+  } catch (e) {
+    console.error("loadModels failed", e);
+    const picker = document.getElementById("model-picker");
+    const opt = document.createElement("option");
+    opt.value = DEFAULT_MODEL;
+    opt.textContent = DEFAULT_MODEL + " (默认)";
+    picker.appendChild(opt);
+    picker.onchange = () => {
+      const c = activeConv();
+      if (c) { c.model = picker.value; saveState(); }
+    };
+  }
   if (state.conversations.length === 0) newConv();
   else renderAll();
 })();
