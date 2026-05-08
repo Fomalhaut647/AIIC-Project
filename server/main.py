@@ -101,7 +101,7 @@ async def chat(req: ChatRequest, client: httpx.AsyncClient = Depends(get_http_cl
                 async for chunk in upstream.aiter_raw():
                     if chunk:
                         yield chunk
-        except httpx.HTTPError as exc:
+        except Exception as exc:
             yield (
                 f"event: error\n"
                 f"data: {{\"status\":502,\"body\":\"upstream_failure: {type(exc).__name__}\"}}\n\n"
