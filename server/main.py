@@ -60,11 +60,13 @@ from services.schemas import (
     ResumeRevision,
     RiskLevel,
     SessionMeta,
+    STTResponse,
     TTSRequest,
     UploadedFile,
     UploadResponse,
     UserModel,
 )
+from services.stt import transcribe as stt_transcribe_audio
 from services.tts import synthesize_speech
 from services.store import SessionNotFound
 
@@ -788,3 +790,94 @@ async def tts_synthesize(req: TTSRequest):
         raise HTTPException(status_code=503, detail="TTS upstream unavailable") from e
 
     return Response(content=audio, media_type="audio/mpeg")
+
+
+# ----------------- Plan3.5 Bug 3: STT 转录 -----------------
+
+# STT 大小上限：5MB ≈ 60s opus@64kbps 上限，比 G1 上传 10MB 严格（音频不持久化）。
+# 单帧 webm/opus 比 mp3 紧凑，5MB 已能容纳长达 ~10min 的语音。
+MAX_AUDIO_SIZE = 5 * 1024 * 1024
+
+# 接受的音频 mime（前缀匹配；前端 MediaRecorder 通常带 ;codecs=... 后缀）。
+# 实际容器解码由 ffmpeg + MiMo Omni 处理；这里只是粗筛 attack surface。
+_ACCEPTED_AUDIO_MIME_PREFIXES = (
+    "audio/webm",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/wave",
+    "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+    "audio/aac",
+    "audio/flac",
+    "audio/x-flac",
+    "audio/opus",
+)
+
+
+@app.post("/api/stt/transcribe", response_model=STTResponse)
+async def stt_transcribe(
+    file: UploadFile = File(...),
+    user_id: str = Form("anonymous"),
+):
+    """Plan3.5 Bug 3 — server-side STT，替代 v1 Chrome `webkitSpeechRecognition`。
+
+    multipart 上传 audio blob → MiMo Omni 转录 → JSON {transcript, user_id}。
+    音频**不持久化**（仅内存 + 转码 + 上送）；与 G1 文件上传不同，无配额。
+
+    部署 prerequisite: nginx `client_max_body_size 12M;`（已为 G1 配过）→ 5MB OK。
+    upstream timeout 60s（ASR 慢于 TTS）；nginx 默认 60s upstream 也 OK。
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="filename missing")
+
+    if not _SAFE_ID_RE.fullmatch(user_id):
+        raise HTTPException(
+            status_code=400,
+            detail="invalid user_id (must be 1-64 chars from [A-Za-z0-9_-])",
+        )
+
+    # mime 粗筛；frontend 必须传 Content-Type，否则 UploadFile.content_type 为 None。
+    ctype = (file.content_type or "").split(";", 1)[0].strip().lower()
+    if not any(ctype.startswith(p) for p in _ACCEPTED_AUDIO_MIME_PREFIXES):
+        raise HTTPException(
+            status_code=400,
+            detail=f"unsupported audio mime: {ctype or '<missing>'}",
+        )
+
+    # OOM 防御：Content-Length pre-check
+    if file.size is not None and file.size > MAX_AUDIO_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"audio too large (max {MAX_AUDIO_SIZE // 1024 // 1024}MB)",
+        )
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="audio body is empty")
+    if len(audio_bytes) > MAX_AUDIO_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"audio too large (max {MAX_AUDIO_SIZE // 1024 // 1024}MB)",
+        )
+
+    try:
+        transcript = await stt_transcribe_audio(audio_bytes, file.content_type or "audio/webm")
+    except KeyError:
+        # MIMO_API_KEY 未配 → 配置错（与 TTS 503 not configured 对偶）
+        raise HTTPException(status_code=503, detail="STT not configured")
+    except ValueError as e:
+        # 空 audio_bytes（pre-check 拦不住的边界）→ 400
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        # ffmpeg 转码失败：客户端送了非音频/损坏数据 → 422 Unprocessable Entity
+        # （区别于 503 上游 LLM 不可用）；不暴露 ffmpeg stderr 详情（避免攻击面提示）
+        raise HTTPException(status_code=422, detail="audio decode failed") from e
+    except httpx.HTTPError as e:
+        # 上游 MiMo 故障 / 网络 → 503，前端可降级（如重试 / 提示输入）
+        raise HTTPException(status_code=503, detail="STT upstream unavailable") from e
+
+    return STTResponse(transcript=transcript, user_id=user_id)

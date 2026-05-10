@@ -107,9 +107,10 @@
 ## 密钥与配置
 
 - **`.env`** 存敏感配置，由用户级 `~/.gitignore_global`（第 248 行 `.env`）兜底屏蔽，**禁止 commit**。当前包含：
-  - `MIMO_API_KEY` — Plan3 G3 TTS provider (services/tts.py + /api/tts/synthesize); 缺失时 endpoint 503 "TTS not configured"。v1 web chat 已弃用，maintainer 复用同 key
-  - `MIMO_BASE_URL` (可选) — Plan3 TTS endpoint，缺省 `https://token-plan-cn.xiaomimimo.com/v1`
+  - `MIMO_API_KEY` — Plan3 G3 TTS provider (services/tts.py + /api/tts/synthesize) **+ Plan3.5 Bug 3 STT** (services/stt.py + /api/stt/transcribe via mimo-v2-omni); 缺失时 endpoint 503 "TTS not configured" / "STT not configured"。v1 web chat 已弃用，maintainer 复用同 key
+  - `MIMO_BASE_URL` (可选) — Plan3 TTS + Plan3.5 STT endpoint，缺省 `https://token-plan-cn.xiaomimimo.com/v1`
   - `MIMO_MODEL` (可选) — Plan3 TTS model，缺省 `mimo-v2.5-tts`
+  - `MIMO_OMNI_MODEL` (可选) — Plan3.5 STT 多模态模型（chat.completions + input_audio），缺省 `mimo-v2-omni`
   - `DEEPSEEK_API_KEY` — v2 ProjectProbe Coach + Interviewer LLM provider
   - `DEEPSEEK_BASE_URL` (可选) — DeepSeek API 端点，缺省 `https://api.deepseek.com`
   - `DEEPSEEK_MODEL` (可选) — 缺省 `deepseek-chat`
