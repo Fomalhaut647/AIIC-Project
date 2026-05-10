@@ -83,7 +83,11 @@
 
 ## 密钥与配置
 
-- **`.env`** 存敏感配置，由用户级 `~/.gitignore_global`（第 248 行 `.env`）兜底屏蔽，**禁止 commit**。当前包含 `MIMO_API_KEY`（v1 用，新实现按需弃用）
+- **`.env`** 存敏感配置，由用户级 `~/.gitignore_global`（第 248 行 `.env`）兜底屏蔽，**禁止 commit**。当前包含：
+  - `MIMO_API_KEY` — v1 web chat 用，v2 已弃用
+  - `DEEPSEEK_API_KEY` — v2 ProjectProbe Coach + Interviewer LLM provider
+  - `DEEPSEEK_BASE_URL` (可选) — DeepSeek API 端点，缺省 `https://api.deepseek.com`
+  - `DEEPSEEK_MODEL` (可选) — 缺省 `deepseek-chat`
 - **加载方式**：`python-dotenv`（`pixi.toml` 已固定 `>=1.2.2,<2`）→ `from dotenv import load_dotenv; load_dotenv()` → `os.environ["..."]`
 - **新增 secret 流程**：写入 `.env`，并在本节末尾追加一行说明用途
 
