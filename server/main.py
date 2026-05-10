@@ -385,7 +385,7 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
     # Plan2 P8: persist report on session JSON dump so export.md can find it
     # later (Spec D §9.1 implicit "reviewed" status = report present).
     session.evaluation_report = report
-    app.state.store._dump(session)
+    app.state.store.persist(session)
 
     # Plan2 P7: aggregate SessionMeta into user profile (Spec D §6.2 review hook).
     # Best-effort: if profile write fails, the user still gets the report

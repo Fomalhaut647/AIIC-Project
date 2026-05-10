@@ -47,13 +47,13 @@ def _seed_session_with_report(client, session_id_marker: str = "sess-done") -> s
     store = client.app.state.store
     pkt = InterviewPacket(
         target=Target.BAOYAN, interviewer_style="strict",
-        project_summary="测试项目 P", focus_slots=["baseline"],
+        project_summary="测试项目 P 中文", focus_slots=["baseline"],
     )
     um = UserModel(id="u1", goal="保研", target=Target.BAOYAN)
     sid = store.create(pkt, um)
     session = store.get(sid)
     session.evaluation_report = EvaluationReport.model_validate(_evaluation_report())
-    store._dump(session)  # persist with report
+    store.persist(session)  # persist with report (public alias of _dump)
     return sid
 
 
@@ -113,9 +113,8 @@ def test_export_markdown_409_when_review_missing(client):
     )
     um = UserModel(id="u1", goal="保研", target=Target.BAOYAN)
     sid = store.create(pkt, um)
-    # Force the session JSON to disk without report (call append_turn would be cleaner but simpler:
-    # _dump directly).
-    store._dump(store.get(sid))
+    # Force the session JSON to disk without report (use public persist).
+    store.persist(store.get(sid))
 
     r = client.get(f"/api/sessions/{sid}/export.md")
     assert r.status_code == 409, r.text
@@ -132,3 +131,46 @@ def test_export_markdown_returns_markdown_file(client):
     assert "ProjectProbe 复盘报告" in r.text
     assert "## 1." in r.text
     assert "## 8." in r.text
+
+
+def test_export_markdown_content_type_includes_utf8_charset(client):
+    """Spec D §6.1: text/markdown; charset=utf-8 — UTF-8 round-trip 中文字符."""
+    sid = _seed_session_with_report(client)
+    r = client.get(f"/api/sessions/{sid}/export.md")
+    assert r.status_code == 200
+    ct = r.headers["content-type"]
+    assert "text/markdown" in ct
+    assert "charset=utf-8" in ct.lower()
+    # 中文 UTF-8 round-trip
+    assert "测试项目" in r.text  # 来自 project_summary
+    assert "训练计划" in r.text or "下一轮" in r.text  # 来自 sec 6 标题
+
+
+def test_export_markdown_filename_format(client):
+    """Spec D §6.1 filename: projectprobe-{8-char-prefix}-{YYYY-MM-DD}-score{N}.md"""
+    import re
+    sid = _seed_session_with_report(client)
+    r = client.get(f"/api/sessions/{sid}/export.md")
+    cd = r.headers.get("content-disposition", "")
+    # 匹配 attachment; filename="projectprobe-XXXXXXXX-YYYY-MM-DD-scoreNN.md"
+    m = re.search(r'filename="(projectprobe-[0-9a-f]{8}-\d{4}-\d{2}-\d{2}-score\d+\.md)"', cd)
+    assert m is not None, f"Content-Disposition pattern mismatch: {cd!r}"
+    fname = m.group(1)
+    assert sid[:8] in fname  # 前 8 字符 = session_id 前缀
+    assert "score70" in fname  # _evaluation_report() 设的 overall_score
+
+
+def test_export_markdown_renders_training_plan_dict_readable(client):
+    """回归: next_training_plan 是 TrainingPlan dict 不是 str；之前 f-string 直接
+    把 dict 转成 Python repr 给用户看。修复后应渲染为可读 markdown。"""
+    sid = _seed_session_with_report(client)
+    r = client.get(f"/api/sessions/{sid}/export.md")
+    assert r.status_code == 200
+    # 不应是 Python dict repr
+    assert "{'recommended_next_step'" not in r.text
+    assert "{'name'" not in r.text
+    # 应该有可读字段
+    assert "推荐下一步" in r.text or "普通项目面" in r.text
+    assert "原因" in r.text or "ok" in r.text
+    # 步骤
+    assert "**步骤**" in r.text or "1." in r.text

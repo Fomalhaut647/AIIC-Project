@@ -57,6 +57,12 @@ class SessionStore:
         path = self._dump_dir / f"{session.session_id}.json"
         path.write_text(session.model_dump_json(indent=2), encoding="utf-8")
 
+    def persist(self, session: InterviewSession) -> None:
+        """Public alias for _dump. Use this from outside the module
+        (e.g. server/main.py review-hook attaches evaluation_report then persists)
+        instead of reaching into the single-leading-underscore private method."""
+        self._dump(session)
+
     def load_session_dict(self, session_id: str) -> dict | None:
         """Load session JSON from disk as raw dict (for export rendering).
 

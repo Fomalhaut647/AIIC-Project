@@ -65,6 +65,37 @@ def _format_dialog(turns: list[dict[str, Any]]) -> str:
     )
 
 
+def _format_training_plan(plan: Any) -> str:
+    """渲染 TrainingPlan dict (recommended_next_step / reason / steps[]) 为可读 markdown.
+    兼容旧字符串 plan（Spec D 之前的版本）；None / 空 → '（无）'."""
+    if plan is None:
+        return "（无）"
+    if isinstance(plan, str):
+        return plan or "（无）"
+    if not isinstance(plan, dict):
+        return str(plan)
+    parts: list[str] = []
+    rec = plan.get("recommended_next_step")
+    if rec:
+        parts.append(f"**推荐下一步**：{rec}")
+    reason = plan.get("reason")
+    if reason:
+        parts.append(f"**原因**：{reason}")
+    steps = plan.get("steps") or []
+    if steps:
+        step_lines = ["**步骤**："]
+        for i, s in enumerate(steps, start=1):
+            if isinstance(s, dict):
+                name = s.get("name", "")
+                goal = s.get("goal", "")
+                why = s.get("why_now", "")
+                step_lines.append(f"{i}. **{name}** — 目标：{goal}（{why}）")
+            else:
+                step_lines.append(f"{i}. {s}")
+        parts.append("\n".join(step_lines))
+    return "\n\n".join(parts) if parts else "（无）"
+
+
 def _format_revision_history(revs: list[dict[str, Any]]) -> str:
     if not revs:
         return ""
@@ -115,7 +146,7 @@ def render_markdown(session: dict[str, Any]) -> str:
     revision_block = _format_revision_history(rr.get("revision_history", []) or [])
     sec5 = sec5_main + ("\n" + revision_block if revision_block else "")
 
-    sec6 = f"## 6. 下一轮训练计划\n\n{report.get('next_training_plan', '（无）')}\n"
+    sec6 = f"## 6. 下一轮训练计划\n\n{_format_training_plan(report.get('next_training_plan'))}\n"
 
     sec7 = (
         f"## 7. 幽默卡片\n\n"
