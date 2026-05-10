@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -42,6 +42,7 @@ from services.interviewer import (
     start as interviewer_start,
     build_replay_packet,
 )
+from services.file_parse import parse_file
 from services.llm import call_deepseek
 from services.prompts import PROFILE_PARSE_SYSTEM
 from services.schemas import (
@@ -58,6 +59,8 @@ from services.schemas import (
     ResumeRevision,
     RiskLevel,
     SessionMeta,
+    UploadedFile,
+    UploadResponse,
     UserModel,
 )
 from services.store import SessionNotFound
@@ -650,3 +653,65 @@ async def api_coach_resume_iterate(body: _ResumeIterateReq) -> ResumeRevision:
         app.state.store.persist(session)
 
         return revision
+
+
+# ----------------- Plan3 G1: 文件上传 -----------------
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_USER_QUOTA = 50 * 1024 * 1024  # 50MB
+ALLOWED_EXTS = {"pdf", "docx", "md", "txt"}
+
+
+@app.post("/api/uploads", response_model=UploadResponse)
+async def upload_file(
+    file: UploadFile = File(...),
+    user_id: str = Form("anonymous"),
+):
+    """Spec E §7.2 — 上传项目材料；解析后注入 onboarding/material textarea。"""
+    if not file.filename:
+        raise HTTPException(400, "filename missing")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in ALLOWED_EXTS:
+        raise HTTPException(400, f"unsupported file type: .{ext}")
+
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(413, f"file too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)")
+
+    # Plan2 P7 pattern: per-request 读 DATA_DIR env，不缓存为 module 常量
+    data_dir = Path(os.environ.get("DATA_DIR", "data"))
+    user_dir = data_dir / "uploads" / user_id
+    used = sum(p.stat().st_size for p in user_dir.glob("*") if p.is_file()) if user_dir.exists() else 0
+    if used + len(contents) > MAX_USER_QUOTA:
+        raise HTTPException(413, f"user quota exceeded (max {MAX_USER_QUOTA // 1024 // 1024}MB)")
+
+    file_id = str(uuid.uuid4())
+    user_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = user_dir / f"{file_id}.{ext}"
+    raw_path.write_bytes(contents)
+
+    try:
+        parsed_text, warnings = await parse_file(raw_path, ext)
+    except Exception as e:
+        raw_path.unlink(missing_ok=True)
+        raise HTTPException(422, f"parse failed: {e}")
+
+    meta = UploadedFile(
+        file_id=file_id,
+        user_id=user_id,
+        original_filename=file.filename,
+        file_type=ext,
+        size_bytes=len(contents),
+        uploaded_at=datetime.now(),
+        parsed_text=parsed_text,
+        parse_warnings=warnings,
+    )
+    (user_dir / f"{file_id}.json").write_text(meta.model_dump_json(indent=2), encoding="utf-8")
+
+    return UploadResponse(
+        file_id=file_id,
+        parsed_text=parsed_text,
+        file_type=ext,
+        parse_warnings=warnings,
+    )
