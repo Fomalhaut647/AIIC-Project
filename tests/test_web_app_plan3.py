@@ -129,6 +129,22 @@ def test_voice_input_has_max_record_duration_auto_stop():
     assert "_autoStopTimer" in fn_chunk
 
 
+def test_show_feedback_scrolls_into_view_on_mobile():
+    """Plan3.5 PR #6 review round 1: showFeedback 在 ≤720px mobile 必须 scrollIntoView,
+    因为 .interview-sidebar 在该 breakpoint position:static + order:0 折叠到顶部,
+    用户底部 textarea 提交后反馈渲到顶部不会自动滚——会重现 ba037ea 修复的
+    「demo wow moment 易被错过」问题。桌面 sticky sidebar 不需要 scroll。"""
+    fn_start = APP_JS.find("function showFeedback")
+    assert fn_start >= 0
+    fn_chunk = APP_JS[fn_start:fn_start + 1500]
+    assert "scrollIntoView" in fn_chunk, (
+        "showFeedback 必须保留 scrollIntoView (mobile fallback 路径)"
+    )
+    assert "max-width: 720px" in fn_chunk or "matchMedia" in fn_chunk, (
+        "scrollIntoView 应 mobile-only 触发 (matchMedia 720px breakpoint),不在桌面执行"
+    )
+
+
 # ---------- Plan3.5 Bug 4: TTS 听不到诊断 + 修 ----------
 
 
