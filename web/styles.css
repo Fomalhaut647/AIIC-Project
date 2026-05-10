@@ -371,75 +371,45 @@ textarea::placeholder { color: var(--text-2); }
    sidebar 等价规则: .sidebar-feedback / .sidebar-feedback b / .sidebar-feedback
    .miss / .sidebar-feedback .covered-chip / .sidebar-feedback .score 已加。 */
 
-/* ----- cheat tab + drawer (Plan3.5 Imp 4: OS panel → 右侧推拉抽屉) ----- */
-/* 抽屉 tab：固定在视口右缘中部，垂直竖排文字。点击切换 cheat-panel.hidden。 */
-.cheat-toggle.cheat-drawer-tab {
-  position: fixed;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  margin: 0;
-  width: auto;
-  background: var(--bg-1);
+/* ----- cheat panel + sidebar toggle (Plan3.6: inline 第 3 列，不再 overlay) ----- */
+/* sidebar 内 toggle button：常规按钮视觉，全宽贴 sidebar 风格 */
+.cheat-toggle-inline {
+  width: 100%;
+  background: var(--bg-2);
   color: var(--text-0);
   border: 1px solid var(--border);
-  border-right: none;
-  border-radius: 12px 0 0 12px;
-  padding: 16px 10px;
-  font-weight: 600;
+  border-radius: 8px;
+  padding: 10px 14px;
   font-size: 13px;
-  letter-spacing: 1px;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  font-weight: 600;
   cursor: pointer;
-  z-index: 50;
-  box-shadow: -4px 0 16px rgba(0,0,0,0.12);
-  /* 复用既有 .cheat-toggle 的 pulse 动画引用消失：保留首次渲染 3 次 pulse 引导 */
-  animation: cheat-pulse 2.4s ease-in-out 3;
-  transition: background 120ms, color 120ms, transform 160ms ease;
+  text-align: center;
+  transition: background 120ms, border-color 120ms, color 120ms;
 }
-.cheat-toggle.cheat-drawer-tab:hover:not(:disabled) {
+.cheat-toggle-inline:hover:not(:disabled) {
   background: var(--accent);
   color: var(--bg-0);
   border-color: var(--accent);
-  transform: translateY(-50%) translateX(-3px);
-  animation: none;
 }
-@keyframes cheat-pulse {
-  0%, 100% { box-shadow: -4px 0 16px rgba(88,166,255,0.0), 0 0 0 0 rgba(88,166,255,0.0); }
-  50%      { box-shadow: -4px 0 16px rgba(88,166,255,0.4), 0 0 0 6px rgba(88,166,255,0.18); }
+.cheat-toggle-inline:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* 抽屉本体：固定在右缘，从 100% translateX 滑入。.hidden 时 visibility:hidden + 偏移；
-   `.hidden` 全局规则是 `display:none !important`，对 cheat-panel 我们 override 让 transform
-   动画能播完——用 !important 战 !important. */
+/* cheat-panel 本体：grid 第 3 列，sticky 跟随滚动，max-height 防超长 OS 撑爆视口 */
 .cheat-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(380px, 100vw);
   background: var(--bg-1);
+  border: 1px solid var(--border);
   border-left: 4px solid var(--text-2);
-  padding: 28px 24px 24px;
-  overflow-y: auto;
+  border-radius: 12px;
+  padding: 18px 20px;
   font-size: 14px;
   line-height: 1.6;
-  box-shadow: -8px 0 32px rgba(0,0,0,0.25);
-  z-index: 60;
-  transform: translateX(100%);
-  visibility: hidden;
-  transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1),
-              visibility 0s linear 240ms;
-}
-.cheat-panel.hidden {
-  /* override 全局 .hidden 让抽屉保留 display:block,以便 transform 动画 */
-  display: block !important;
-}
-.cheat-panel:not(.hidden) {
-  transform: translateX(0);
-  visibility: visible;
-  transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  min-width: 0;
 }
 .cheat-panel.risk-low  { border-left-color: var(--good); }
 .cheat-panel.risk-mid  { border-left-color: var(--warn); }
@@ -491,13 +461,28 @@ textarea::placeholder { color: var(--text-2); }
 .cheat-panel ul { padding-left: 22px; margin: 6px 0 12px; }
 .cheat-panel li { margin: 3px 0; color: var(--text-1); }
 
-/* ===== Plan3.5 Imp 1+3: 3-col interview layout (sidebar + main) ===== */
+/* ===== Plan3.6: 3-col interview layout (sidebar | main | cheat-panel) ===== */
+/* full-bleed: 跳出 #app 920px 钳制 (Bug A)。放在 .view.hidden 之后所以 hidden 优先。 */
+#view-interview {
+  width: 100vw;
+  position: relative;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  padding-left: 24px;
+  padding-right: 24px;
+}
 
 .interview-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(220px, 280px) minmax(420px, 720px) minmax(280px, 380px);
+  gap: 24px;
   align-items: start;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+/* 用户主动收起 OS panel：第 3 列消失，主区拉宽 */
+.interview-layout.cheat-collapsed {
+  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
 }
 
 .interview-sidebar {
@@ -641,9 +626,25 @@ textarea::placeholder { color: var(--text-2); }
   max-height: 60vh;
 }
 
-/* responsive: < 720px 折叠成单列 + sidebar 顶置非 sticky */
-@media (max-width: 720px) {
+/* responsive: 1024px 折叠 cheat-panel 到第 2 行；720px 全单列堆叠 */
+@media (max-width: 1024px) {
   .interview-layout {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    /* cheat-panel 自动跳到第 2 行占满整行宽度 */
+  }
+  .interview-layout.cheat-collapsed {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+  .cheat-panel:not(.hidden) {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .interview-layout,
+  .interview-layout.cheat-collapsed {
     grid-template-columns: 1fr;
     gap: 16px;
   }
@@ -668,22 +669,11 @@ textarea::placeholder { color: var(--text-2); }
     border-left-color: transparent;
     border-bottom-color: var(--accent);
   }
-  /* 抽屉 tab 在小屏放右下角圆形按钮，省屏宽 */
-  .cheat-toggle.cheat-drawer-tab {
-    top: auto;
-    bottom: 80px;
-    transform: none;
-    writing-mode: horizontal-tb;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    padding: 10px 14px;
-    font-size: 12px;
-    letter-spacing: 0;
+  /* full-bleed padding 在移动端缩小避免横向溢出 */
+  #view-interview {
+    padding-left: 16px;
+    padding-right: 16px;
   }
-  .cheat-toggle.cheat-drawer-tab:hover:not(:disabled) {
-    transform: translateX(-2px);
-  }
-  .cheat-panel { width: 100vw; }
 }
 
 /* ----- transcript (interview history) ----- */
