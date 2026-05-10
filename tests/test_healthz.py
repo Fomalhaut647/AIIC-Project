@@ -109,3 +109,88 @@ def test_interviewer_next_unknown_session_404_with_structured_detail():
             f"Spec C §2.6 requires dict-shaped detail, got {type(detail)}"
         assert detail.get("error") == "session_expired"
         assert "message" in detail
+
+
+# ---------- /api/interviewer/start?demo=1 (Spec C §8.2) ----------
+
+# Minimal valid payload for /interviewer/start. All fields below are
+# Pydantic-required by InterviewPacket / UserModel; values are arbitrary
+# since demo=1 mode bypasses the LLM that would normally consume them.
+_DEMO_START_BODY = {
+    "interview_packet": {
+        "target": "求职",
+        "interviewer_style": "直接",
+        "intensity": "中",
+        "project_summary": "AI 财会助理 LedgerCraft (demo fixture)",
+        "focus_slots": ["S3", "S4"],
+    },
+    "user_model": {
+        "id": "test-user",
+        "goal": "求职 AI 算法实习",
+        "target": "求职",
+    },
+}
+
+
+def test_interviewer_start_demo_mode_returns_hardcoded_question():
+    """Spec C §8.2: ?demo=1 returns a hardcoded S1 question without LLM call.
+
+    This makes the demo video's first 30s deterministic. Verifies (a) endpoint
+    accepts the query param, (b) returns S1_motivation state, (c) hardcoded
+    question contains the expected motif (痛点 / 真实), (d) interviewer_os
+    is fully populated, (e) focus_slots is the demo-specific override.
+    """
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/interviewer/start?demo=1",
+            json=_DEMO_START_BODY,
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["state"] == "S1_motivation"
+        assert "痛点" in body["question"] and "真实" in body["question"]
+        assert body["session_id"]  # non-empty session created
+        assert body["focus_slots"] == ["pain_real", "target_user"]
+        os_ = body["interviewer_os"]
+        for field in ("hidden_concern", "why_this_question",
+                      "missing_slots", "what_i_want_to_hear", "risk_level"):
+            assert field in os_, f"interviewer_os missing {field}"
+
+
+def test_interviewer_start_demo_mode_creates_session_for_followup():
+    """The demo session_id must be usable in subsequent /interviewer/next
+    calls (i.e. the hardcoded turn was actually persisted to the store)."""
+    with TestClient(app) as client:
+        sid = client.post(
+            "/api/interviewer/start?demo=1",
+            json=_DEMO_START_BODY,
+        ).json()["session_id"]
+        # session is real → /coach/review on a 1-turn session must hit the
+        # spec C §2.7 gate (state != DONE AND turns < 6 → 400), NOT 404.
+        # If session weren't persisted, we'd get 404 instead.
+        review_resp = client.post(
+            "/api/coach/review", json={"session_id": sid},
+        )
+        assert review_resp.status_code == 400, \
+            f"expected 400 (gate), got {review_resp.status_code}: {review_resp.text}"
+
+
+# ---------- /api/coach/review tightened gate (Spec C §2.7) ----------
+
+def test_coach_review_partial_session_400_state_and_turns_in_detail():
+    """Spec C §2.7 gate: when state != DONE AND turns < 6, 400 with detail
+    that helps the frontend render a useful Chinese message (Issue 3 fix).
+    """
+    with TestClient(app) as client:
+        # Create a session via the demo path (1 turn, state=S1_motivation)
+        sid = client.post(
+            "/api/interviewer/start?demo=1",
+            json=_DEMO_START_BODY,
+        ).json()["session_id"]
+        resp = client.post("/api/coach/review", json={"session_id": sid})
+        assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        # Must mention both state and turn count so frontend can show
+        # actionable feedback rather than a generic "400 Bad Request".
+        assert "state=" in detail
+        assert "turns=" in detail

@@ -13,11 +13,12 @@ Lifespan responsibilities:
 from __future__ import annotations
 
 import subprocess
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -28,10 +29,13 @@ from services.prompts import PROFILE_PARSE_SYSTEM
 from services.schemas import (
     CoachPlanResult,
     EvaluationReport,
+    InterviewerOS,
     InterviewPacket,
     InterviewStage,
     InterviewTurn,
     OnboardResult,
+    QuestionSource,
+    RiskLevel,
     UserModel,
 )
 from services.store import SessionNotFound
@@ -196,12 +200,82 @@ class _StartResp(BaseModel):
     focus_slots: list[str]
 
 
+# Demo mode (Spec C §8.2): hardcoded high-quality S1 question that bypasses
+# the LLM for the demo video's first 30 seconds. Subsequent /next calls still
+# hit real LLM, so the wow moment (vague answer → missing_slots) is preserved.
+# Tuned for the LedgerCraft (财会 Agent) sample project loaded by the HOME
+# 「使用示例项目」button.
+_DEMO_FOCUS_SLOTS = ["pain_real", "target_user"]
+
+
+def _build_demo_first_turn(session_id: str) -> InterviewTurn:
+    return InterviewTurn(
+        id=uuid.uuid4().hex,
+        session_id=session_id,
+        state=InterviewStage.S1_MOTIVATION,
+        question=(
+            "你是怎么发现这个财务痛点真实存在的？"
+            "你访谈过几个真实用户吗？"
+        ),
+        answer="",
+        score=0,
+        covered_slots=[],
+        missing_slots=[],
+        feedback="",
+        next_question="",
+        source=QuestionSource.PROJECT,
+        interviewer_os=InterviewerOS(
+            hidden_concern=(
+                "候选人可能只在描述系统功能，并没有验证过财务部门"
+                "真实痛点；如果连一个用户访谈都拿不出来，后续技术细节"
+                "都站不住。"
+            ),
+            why_this_question=(
+                "痛点的真实性是这个项目能否被实验室 / 公司接受的根基。"
+                "第一问就问这个，能立刻分辨出 '做了 demo' 和 "
+                "'解决了真实问题' 两类候选人。"
+            ),
+            missing_slots=["pain_real", "target_user"],
+            what_i_want_to_hear=[
+                "具体的访谈对象（多少人 / 角色 / 行业）",
+                "他们抱怨的原话或具体场景",
+                "现有解决方案为什么不够",
+            ],
+            risk_level=RiskLevel.MEDIUM,
+        ),
+    )
+
+
 @app.post("/api/interviewer/start", response_model=_StartResp)
-async def api_interviewer_start(body: _StartReq) -> _StartResp:
+async def api_interviewer_start(
+    body: _StartReq,
+    demo: bool = Query(
+        False,
+        description=(
+            "Spec C §8.2: bypass LLM and return a hardcoded S1 question + OS "
+            "for demo video reliability. Subsequent /next calls still use LLM."
+        ),
+    ),
+) -> _StartResp:
     if app.state.bank is None or app.state.store is None:
         raise HTTPException(
             status_code=503,
             detail="services.store / question_bank not initialised",
+        )
+    if demo:
+        sid = app.state.store.create(body.interview_packet, body.user_model)
+        turn = _build_demo_first_turn(sid)
+        # Persist so subsequent /interviewer/next finds the session + can
+        # reference this as last_turn.
+        app.state.store.append_turn(sid, turn)
+        return _StartResp(
+            session_id=sid,
+            state=turn.state,
+            question=turn.question,
+            interviewer_os=turn.interviewer_os.model_dump(mode="json"),
+            # Override packet focus_slots with demo-specific (pain_real /
+            # target_user) so the banner aligns with the hardcoded question.
+            focus_slots=_DEMO_FOCUS_SLOTS,
         )
     sid, turn = await interviewer.start(
         body.interview_packet,

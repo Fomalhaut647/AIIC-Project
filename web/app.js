@@ -250,7 +250,14 @@ async function startInterviewFromMaterial() {
     state.packet = plan.interview_packet;
 
     setMaterialBusy(true, "Interviewer 正在准备第一问...");
-    const start = await postJson("/api/interviewer/start", {
+    // Spec C §8.2: demo path appends ?demo=1 so server returns the
+    // hardcoded high-quality S1 question instead of risking an LLM抽风
+    // in the first 30s of the demo video. Subsequent /next calls are
+    // unaffected (still real LLM).
+    const startUrl = state.is_demo
+      ? "/api/interviewer/start?demo=1"
+      : "/api/interviewer/start";
+    const start = await postJson(startUrl, {
       interview_packet: state.packet,
       user_model: state.user_model,
     });
