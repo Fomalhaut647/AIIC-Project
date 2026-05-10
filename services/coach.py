@@ -15,6 +15,18 @@ from services.schemas import (
     Target, TrainingMode, RiskLevel,
     TrainingPlan, TrainingStep,
     ReplayMiniReport, ResumeRevision, SessionMeta, _canon_slot,
+    HumorCard,
+)
+
+
+# Plan3.5 Imp 5: 固定 humor card 模板。LLM 生成的笑话不稳定 + 浪费 token，
+# demo 用固定数学梗（指数对比）保证一致性 + 与「薄弱项重练」产品主张呼应。
+_HUMOR_CARD_CONSTANT = HumorCard(
+    title="高价值 bug：薄弱项是真痛点",
+    content=(
+        "1.01^30 = 1.35：每天努力 1%，30 天后能提升 35%。\n"
+        "而 1.2^2 = 1.44 > 1.35：努力一个月，不如让教练帮你解决 2 个薄弱项。"
+    ),
 )
 
 
@@ -97,7 +109,7 @@ async def review(
     ]
     # review 是 demo 关键路径，给一个最小 fallback 避免崩溃
     from services.schemas import (
-        Evidence, ResumeRewrite, HumorCard,
+        Evidence, ResumeRewrite,
     )
     fallback = EvaluationReport(
         overall_score=0,
@@ -107,13 +119,17 @@ async def review(
         dangerous_questions=["（无）", "（无）"],
         resume_rewrite=ResumeRewrite(original="", rewritten="", missing_evidence=[]),
         next_training_plan=_PLAN_FALLBACK.training_plan,
-        humor_card=HumorCard(title="系统也会打盹", content="再试一次。"),
+        humor_card=_HUMOR_CARD_CONSTANT,  # Plan3.5 Imp 5: fallback 也用常量
     )
-    return await call_deepseek(
+    report = await call_deepseek(
         messages, response_schema=EvaluationReport,
         temperature=0.7, max_tokens=4000, fallback=fallback,
         timeout=180.0,
     )
+    # Plan3.5 Imp 5: 不论 LLM 输出还是 fallback, humor_card 一律覆盖为固定模板。
+    # 这样既省 LLM 笑话生成的 token 抖动 (LLM 笑话质量不稳)，又保 demo 每次一致。
+    report.humor_card = _HUMOR_CARD_CONSTANT
+    return report
 
 
 # ----------------- Plan2 P3: Replay helpers (Spec D §7.4 / §7.5) -----------------
