@@ -143,3 +143,14 @@ JSON_REPAIR_INSTRUCTION = """\
 请只修复 JSON 格式 / schema 字段，不要改变字段语义，不要添加解释文字，不要输出 Markdown。
 直接输出修正后的 JSON。
 """
+
+INTERVIEWER_REPLAY_PROMPT_INJECT = """\
+
+---
+
+【重练模式】本轮为针对薄弱槽位的重练，规则：
+- 只围绕以下槽位追问，不要扩展话题：{replay_focus_slots}
+- 不要前进状态机，停留在 {state}
+- 用户已经做过整轮面试，可以直接深入；不需要 warm-up
+- 不需要使用任何特殊结束 token；后端会基于 covered_slots 判断是否结束
+"""

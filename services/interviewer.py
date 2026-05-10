@@ -2,10 +2,11 @@
 import uuid
 
 from services.llm import call_deepseek
-from services.prompts import INTERVIEWER_SYSTEM
+from services.prompts import INTERVIEWER_SYSTEM, INTERVIEWER_REPLAY_PROMPT_INJECT
 from services.schemas import (
     InterviewStage, InterviewSession, InterviewTurn,
     InterviewerOS, InterviewPacket, QuestionSource, RiskLevel, UserModel,
+    _canon_slot,
 )
 from services.question_bank import QuestionBank
 from services.store import SessionStore
@@ -135,12 +136,18 @@ async def start(
 
 async def _generate_first_question(packet: InterviewPacket, user_model: UserModel) -> str:
     role = _target_role_phrase(packet.target.value)
+    sys = (
+        f"你是 {role}。基于项目摘要生成第一问，目的是了解项目动机。"
+        f"\n\n项目摘要: {packet.project_summary}\n\n"
+        "只输出问题本身，不要前缀，不要解释。"
+    )
+    if packet.replay_mode:
+        sys += INTERVIEWER_REPLAY_PROMPT_INJECT.format(
+            replay_focus_slots=", ".join(packet.replay_focus_slots),
+            state="S1_motivation",
+        )
     msgs = [
-        {"role": "system", "content": (
-            f"你是 {role}。基于项目摘要生成第一问，目的是了解项目动机。"
-            f"\n\n项目摘要: {packet.project_summary}\n\n"
-            "只输出问题本身，不要前缀，不要解释。"
-        )},
+        {"role": "system", "content": sys},
         {"role": "user", "content": "请提出第一问。"},
     ]
     out = await call_deepseek(msgs, temperature=0.6)
@@ -208,7 +215,10 @@ async def next_turn(
 
     # 3. 推进规则
     update_vague_counter(session, new_turn)
-    advance = should_advance(session, new_turn)
+    advance = (
+        should_advance_state(session.packet, new_turn)
+        and should_advance(session, new_turn)
+    )
 
     next_state = session.state
     if advance:
@@ -259,6 +269,11 @@ async def _evaluate_and_suggest(
         required_slots=", ".join(required),
         turns_json=turns_json,
     ) + ("\n\n" + extra if extra else "")
+    if session.packet.replay_mode:
+        sys_prompt += INTERVIEWER_REPLAY_PROMPT_INJECT.format(
+            replay_focus_slots=", ".join(session.packet.replay_focus_slots),
+            state=session.state.value,
+        )
     user_msg = (
         f"上一题: {last_turn.question}\n用户回答: {answer}\n\n"
         "请按 schema 输出评估 + 下一问。"
@@ -293,3 +308,48 @@ async def _basic_concept_question(session: InterviewSession) -> str:
     ]
     out = await call_deepseek(msgs, temperature=0.5, fallback="请用通俗的话解释一下你项目里用到的核心 AI 概念。")
     return out.strip().strip('"')
+
+
+# ----------------- Plan2 P5: Replay mode (Spec D §7.2 / §7.3 / §7.6) -----------------
+
+REPLAY_TURN_HARD_CAP = 8
+
+
+def build_replay_packet(
+    parent_packet: InterviewPacket,
+    focus_slots: list[str],
+    parent_session_id: str,
+) -> InterviewPacket:
+    """Spec D §7.2 — 从 parent packet 派生 replay packet。"""
+    return parent_packet.model_copy(update={
+        "replay_mode": True,
+        "replay_focus_slots": list(focus_slots),
+        "parent_session_id": parent_session_id,
+    })
+
+
+def should_advance_state(packet: InterviewPacket, latest_turn: InterviewTurn) -> bool:
+    """Spec D §7.3 — Replay-mode short-circuit: replay 模式状态机一律不前进.
+
+    NOTE: 这是一个 permission gate，独立于 v2 的 should_advance(session, turn)
+    slot-coverage 判定。next_turn 内组合: advance = should_advance_state(...) and should_advance(...)
+    """
+    if packet.replay_mode:
+        return False
+    return True
+
+
+def should_continue_replay(
+    turns: list[InterviewTurn],
+    focus_slots: list[str],
+) -> bool:
+    """Spec D §7.6 — replay session 是否继续.
+    停止条件: (a) covered ⊇ focus，或 (b) turns >= 8 (hard cap)."""
+    if len(turns) >= REPLAY_TURN_HARD_CAP:
+        return False
+    focus_canon = {_canon_slot(s) for s in focus_slots}
+    covered: set[str] = set()
+    for t in turns:
+        for slot in t.covered_slots:
+            covered.add(_canon_slot(slot))
+    return not focus_canon.issubset(covered)
