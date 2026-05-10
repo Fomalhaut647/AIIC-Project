@@ -389,6 +389,8 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
             session_id=body.session_id,
             # session creation timestamp not tracked in v2 InterviewSession;
             # use now() as a close approximation (review fires at end of session).
+            # TODO: thread real created_at through services/store.py SessionStore.create()
+            # so dashboard timeline shows session start, not review time.
             created_at=datetime.now(),
             target=session.packet.target,
             project_summary_short=session.packet.project_summary[:80],
@@ -398,8 +400,15 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
             is_replay=session.packet.replay_mode,
         )
         await app.state.store.update_user_profile(body.user_id, meta)
-    except Exception:
+    except Exception as e:
         # Profile aggregation is non-critical; surface report regardless.
-        pass
+        # Log to stderr so production failures leave a trail (no logger configured;
+        # consistent with existing module's print/print-fallback style).
+        import sys
+        print(
+            f"[plan2] user_profile update failed for user_id={body.user_id!r} "
+            f"session_id={body.session_id!r}: {e!r}",
+            file=sys.stderr,
+        )
 
     return report

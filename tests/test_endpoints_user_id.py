@@ -176,14 +176,20 @@ def test_next_endpoint_accepts_user_id(client):
 
 def test_profile_parse_accepts_user_id(client):
     """POST /api/profile/parse 同样接受 user_id."""
-    fake_parse = AsyncMock(return_value={
-        "project_summary": "X" * 100, "technical_keywords": [],
-        "possible_weaknesses": [], "likely_followup_directions": [],
-    })
+    # call_deepseek with response_schema returns the schema instance, not a dict.
+    # Construct via the handler-internal _ParseResp class to make isinstance check pass.
+    from server.main import _ParseResp
+    fake_parse = AsyncMock(return_value=_ParseResp(
+        project_summary="X" * 100,
+        technical_keywords=[],
+        possible_weaknesses=[],
+        likely_followup_directions=[],
+    ))
     with patch("server.main.call_deepseek", fake_parse):
         r = client.post("/api/profile/parse", json={
             "raw_project_text": "我做了一个 AI 财务助理项目。"  * 5,
             "user_id": "user-p",
         })
-    # profile/parse 可能 fallback 到 schema 验证；只验证 not 422
-    assert r.status_code in (200, 500), r.text  # 200 if fake matched, 500 if call_deepseek bypass; not 422
+    assert r.status_code == 200, r.text
+    # 验证 user_id 字段不会被 422 拒绝且 fake_parse 被实际调用过
+    fake_parse.assert_awaited_once()
