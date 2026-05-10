@@ -13,3 +13,6 @@
 # v2 runtime artifacts
 data/sessions/*.json
 logs/*.log
+
+# Plan2: per-user profile JSON dumps（与 sessions 一样不入库）
+data/users/*.json
