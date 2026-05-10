@@ -207,15 +207,162 @@ async function refreshProfileDot() {
   }
 }
 
-// stub — full impl in P12
+// ---------- Plan2 P12: dashboard render ----------
+
+function _escHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]
+  ));
+}
+
 async function loadProfile() {
   const display = document.getElementById("profile-userid-display");
   if (display) display.textContent = USER_ID.slice(0, 8);
-  // P12 will fetch + render. For now show empty state so the view isn't blank.
-  const empty = document.getElementById("profile-empty");
-  const content = document.getElementById("profile-content");
-  if (empty) empty.classList.remove("hidden");
-  if (content) content.classList.add("hidden");
+
+  const emptyEl = document.getElementById("profile-empty");
+  const contentEl = document.getElementById("profile-content");
+
+  let profile;
+  try {
+    const resp = await apiGet(`/api/users/${encodeURIComponent(USER_ID)}/profile`);
+    profile = await resp.json();
+  } catch (e) {
+    console.error("loadProfile failed", e);
+    if (emptyEl) {
+      emptyEl.classList.remove("hidden");
+      const msg = emptyEl.querySelector(".profile-empty-msg");
+      if (msg) msg.textContent = "加载个人主页失败：" + (e.detail || e.message);
+    }
+    if (contentEl) contentEl.classList.add("hidden");
+    return;
+  }
+
+  if ((profile.total_sessions || 0) === 0) {
+    if (emptyEl) emptyEl.classList.remove("hidden");
+    if (contentEl) contentEl.classList.add("hidden");
+    return;
+  }
+
+  if (emptyEl) emptyEl.classList.add("hidden");
+  if (contentEl) contentEl.classList.remove("hidden");
+  renderProfile(profile);
+}
+
+function renderProfile(profile) {
+  // 1. Hero stats
+  document.getElementById("stat-total").textContent = profile.total_sessions || 0;
+  document.getElementById("stat-avg").textContent =
+    (profile.average_score == null ? "—" : Math.round(profile.average_score)) + " / 100";
+
+  const dates = new Set(
+    (profile.sessions || []).map(s => (s.created_at || "").slice(0, 10)).filter(Boolean)
+  );
+  document.getElementById("stat-days").textContent = dates.size;
+
+  // 2. 弱点柱状图（top 5）
+  const weak = Object.entries(profile.recurring_weaknesses || {})
+    .sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxCount = Math.max(1, ...weak.map(([, c]) => c));
+  const weakUl = document.getElementById("profile-weakness-bars");
+  weakUl.innerHTML = "";
+  if (weak.length === 0) {
+    weakUl.innerHTML = '<li><span class="label">（暂无累计弱点）</span></li>';
+  } else {
+    for (const [slot, count] of weak) {
+      const li = document.createElement("li");
+      const widthPx = Math.max(4, Math.round(count / maxCount * 240));
+      li.innerHTML = `
+        <span class="label">${_escHtml(slot)}</span>
+        <span class="bar" style="width: ${widthPx}px"></span>
+        <span class="count">${count} 次</span>
+      `;
+      weakUl.appendChild(li);
+    }
+  }
+
+  // 3. 时间线（倒序：最新在最上；前 20 条）
+  const timeline = document.getElementById("profile-timeline");
+  timeline.innerHTML = "";
+  const sortedSessions = [...(profile.sessions || [])]
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))
+    .slice(0, 20);
+
+  for (const s of sortedSessions) {
+    const li = document.createElement("li");
+    if (s.is_replay) li.classList.add("replay-row");
+
+    const dateStr = (s.created_at || "").replace("T", " ").slice(0, 16) || "—";
+    const weaknessTags = s.weakness_tags || [];
+    const replayBtns = weaknessTags.map(t => (
+      `<button data-action="replay" data-parent="${_escHtml(s.session_id)}" data-slot="${_escHtml(t)}">重练 ${_escHtml(t)}</button>`
+    )).join(" ");
+    const downloadBtn = `<a class="dl-link" data-action="download" data-sid="${_escHtml(s.session_id)}" href="/api/sessions/${encodeURIComponent(s.session_id)}/export.md" download>下载 .md</a>`;
+
+    li.innerHTML = `
+      <div class="timeline-meta">${s.is_replay ? "↳ 重练 · " : ""}${_escHtml(dateStr)}　<strong>[${_escHtml(s.target)}]</strong></div>
+      <div class="timeline-title">${_escHtml(s.project_summary_short || "(无项目摘要)")}</div>
+      <div class="timeline-weak">总分 ${s.overall_score == null ? "—" : s.overall_score} ／ 弱点：${_escHtml(weaknessTags.join("、") || "（无）")}</div>
+      <div class="actions">
+        ${replayBtns}
+        ${downloadBtn}
+      </div>
+    `;
+    timeline.appendChild(li);
+  }
+
+  // 4. 项目库 (去重 + count)
+  const projUl = document.getElementById("profile-projects");
+  projUl.innerHTML = "";
+  const counts = {};
+  for (const s of profile.sessions || []) {
+    const name = s.project_summary_short;
+    if (!name) continue;
+    counts[name] = (counts[name] || 0) + 1;
+  }
+  const projEntries = Object.entries(counts);
+  if (projEntries.length === 0) {
+    projUl.innerHTML = '<li>（暂无）</li>';
+  } else {
+    for (const [name, n] of projEntries) {
+      const li = document.createElement("li");
+      li.innerHTML = `${_escHtml(name)}<span class="proj-count">（${n} 次）</span>　— <button data-action="reuse" data-name="${_escHtml(name)}">再来一次</button>`;
+      projUl.appendChild(li);
+    }
+  }
+}
+
+// 全局 click 委托：dashboard 上动态生成的按钮统一在这里 dispatch (避免 inline onclick)
+document.getElementById("view-profile").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-action]");
+  if (!t) return;
+  const action = t.dataset.action;
+  if (action === "replay") {
+    e.preventDefault();
+    startReplay(t.dataset.parent, t.dataset.slot);  // P13
+  } else if (action === "download") {
+    // anchor href 已经指向 export.md，浏览器自然下载；这里只追加日志
+    // 不 preventDefault, 让浏览器 download 触发
+  } else if (action === "reuse") {
+    e.preventDefault();
+    reuseProject(t.dataset.name);  // P14
+  }
+});
+
+// 空 state link
+const _emptyLink = document.getElementById("profile-empty-link");
+if (_emptyLink) {
+  _emptyLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    switchView("home");
+  });
+}
+
+// stubs filled in P13/P14
+function startReplay(parentId, focusSlot) {
+  console.log("[P13 stub] startReplay", parentId, focusSlot);
+}
+function reuseProject(name) {
+  console.log("[P14 stub] reuseProject", name);
 }
 
 // 启动后立刻探一次
