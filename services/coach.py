@@ -1,4 +1,7 @@
-"""Coach agent — 训练组长。三个能力: onboard / plan / review."""
+"""Coach agent — 训练组长。三个能力: onboard / plan / review。
+Plan2 P3 追加：compute_replay_coverage + summarize_replay (Spec D §7.4 / §7.5)。"""
+from pydantic import BaseModel
+
 from services.llm import call_deepseek
 from services.prompts import (
     COACH_ONBOARD_SYSTEM, COACH_PLAN_SYSTEM, COACH_REVIEW_SYSTEM,
@@ -8,6 +11,7 @@ from services.schemas import (
     OnboardResult, CoachPlanResult, EvaluationReport,
     Target, TrainingMode, RiskLevel,
     TrainingPlan, TrainingStep,
+    ReplayMiniReport, SessionMeta, _canon_slot,
 )
 
 
@@ -95,4 +99,91 @@ async def review(
     return await call_deepseek(
         messages, response_schema=EvaluationReport,
         temperature=0.7, max_tokens=4000, fallback=fallback,
+    )
+
+
+# ----------------- Plan2 P3: Replay helpers (Spec D §7.4 / §7.5) -----------------
+
+
+class _ReplaySummaryLLM(BaseModel):
+    """Internal LLM response schema for summarize_replay (Spec D §7.5)。"""
+    sample_good_answer: str
+    next_step: str
+
+
+def compute_replay_coverage(turns: list[InterviewTurn], focus_slots: list[str]) -> float:
+    """Spec D §7.4 — focus_slots 中被 turns.covered_slots 覆盖的占比。
+
+    - canonicalize: lowercase + strip（对齐 _canon_slot）
+    - 空 focus_slots → 0.0（不抛 ZeroDivisionError）
+    """
+    if not focus_slots:
+        return 0.0
+    focus_canon = {_canon_slot(s) for s in focus_slots}
+    covered: set[str] = set()
+    for turn in turns:
+        for slot in turn.covered_slots:
+            covered.add(_canon_slot(slot))
+    return len(focus_canon & covered) / len(focus_canon)
+
+
+_SUMMARIZE_REPLAY_PROMPT = """\
+你是用户的训练教练。用户刚完成「重练」session，仅围绕以下槽位深挖：
+focus_slots: {focus_slots}
+原 session 在该槽位的覆盖度: {coverage_before:.2f}
+本次重练完成后的覆盖度: {coverage_after:.2f}
+
+下面是重练对话：
+{turns_text}
+
+要求：
+- sample_good_answer 必须是用户原文的摘录或近似复述，不要凭空编造；如无亮眼回答写"未抓到亮眼回答"
+- next_step 要落到具体动作，不要空泛"加油"
+"""
+
+
+async def summarize_replay(
+    parent_meta: SessionMeta,
+    replay_session_id: str,
+    replay_turns: list[InterviewTurn],
+    focus_slots: list[str],
+    coverage_before: float,
+) -> ReplayMiniReport:
+    """Spec D §7.5 — LLM 生成 sample_good_answer + next_step；失败 fallback 默认文案。"""
+    coverage_after = compute_replay_coverage(replay_turns, focus_slots)
+    delta_pp = (coverage_after - coverage_before) * 100
+
+    turns_text = "\n\n".join(
+        f"Q: {t.question}\nA: {t.answer}" for t in replay_turns
+    )
+
+    prompt = _SUMMARIZE_REPLAY_PROMPT.format(
+        focus_slots=", ".join(focus_slots),
+        coverage_before=coverage_before,
+        coverage_after=coverage_after,
+        turns_text=turns_text,
+    )
+
+    try:
+        result: _ReplaySummaryLLM = await call_deepseek(
+            messages=[{"role": "user", "content": prompt}],
+            response_schema=_ReplaySummaryLLM,
+            temperature=0.5,
+            max_tokens=600,
+        )
+        sample = result.sample_good_answer or "未抓到亮眼回答"
+        next_step = result.next_step or f"继续围绕 {focus_slots} 多举具体例子"
+    except Exception:
+        sample = "（无法摘录，请回看原文）"
+        next_step = f"继续围绕 {', '.join(focus_slots)} 多举具体例子"
+
+    return ReplayMiniReport(
+        parent_session_id=parent_meta.session_id,
+        replay_session_id=replay_session_id,
+        focus_slots=focus_slots,
+        coverage_before=coverage_before,
+        coverage_after=coverage_after,
+        delta_pp=delta_pp,
+        sample_good_answer=sample,
+        next_step=next_step,
     )
