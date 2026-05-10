@@ -238,3 +238,30 @@ async def api_interviewer_next(body: _NextReq) -> _NextResp:
             detail={"error": "session_expired", "message": "请重新开始训练"},
         )
     return _NextResp(turn=turn, should_continue=cont, next_state=st)
+
+
+# ============================================================
+# Coach review — Spec C §2.7
+# ============================================================
+
+
+class _ReviewReq(BaseModel):
+    session_id: str
+
+
+@app.post("/api/coach/review", response_model=EvaluationReport)
+async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
+    if app.state.store is None:
+        raise HTTPException(status_code=503, detail="store not initialised")
+    try:
+        session = app.state.store.get(body.session_id)
+    except SessionNotFound:
+        raise HTTPException(status_code=404, detail="session not found")
+    if not session.turns:
+        raise HTTPException(
+            status_code=400,
+            detail="no turns to review — session has 0 answered questions",
+        )
+    return await coach.review(
+        session.user_model, session.packet, session.turns,
+    )
