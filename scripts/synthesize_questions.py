@@ -1,6 +1,25 @@
 """离线合成题库脚本。一次性运行，结果落 data/question_bank.synthetic.json。"""
 from __future__ import annotations
 
+import argparse
+import asyncio
+import json
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+# 让脚本无论从哪儿启动都能找到 services/（同 scripts/smoke_e2e.py 模式）
+_repo_root = Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+from pydantic import BaseModel, Field
+
+from services.llm import call_deepseek
+from services.schemas import InterviewStage, RiskLevel, Target
+
+
 BANNED_PATTERNS = [
     "介绍你的项目", "你最大的优势", "你最大的缺点", "你的职业规划",
 ]
@@ -27,27 +46,6 @@ def is_card_valid(card: dict) -> bool:
     if any(p in card["question"] for p in BANNED_PATTERNS):
         return False
     return True
-
-
-import argparse
-import asyncio
-import json
-import sys
-import uuid
-from datetime import datetime, timezone
-from pathlib import Path
-
-# 让脚本无论从哪儿启动都能找到 services/（同 scripts/smoke_e2e.py 模式）
-_repo_root = Path(__file__).resolve().parent.parent
-if str(_repo_root) not in sys.path:
-    sys.path.insert(0, str(_repo_root))
-
-from pydantic import BaseModel, Field
-
-from services.llm import call_deepseek
-from services.schemas import (
-    InterviewStage, QuestionCard, RiskLevel, Target,
-)
 
 
 SYNTHESIZE_SYSTEM = """\
