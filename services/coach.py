@@ -1,6 +1,9 @@
 """Coach agent — 训练组长。三个能力: onboard / plan / review。
-Plan2 P3 追加：compute_replay_coverage + summarize_replay (Spec D §7.4 / §7.5)。"""
-from pydantic import BaseModel
+Plan2 P3 追加：compute_replay_coverage + summarize_replay (Spec D §7.4 / §7.5)。
+Plan2 P4 追加：iterate_resume (Spec D §8)。"""
+from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 from services.llm import call_deepseek
 from services.prompts import (
@@ -11,8 +14,18 @@ from services.schemas import (
     OnboardResult, CoachPlanResult, EvaluationReport,
     Target, TrainingMode, RiskLevel,
     TrainingPlan, TrainingStep,
-    ReplayMiniReport, SessionMeta, _canon_slot,
+    ReplayMiniReport, ResumeRevision, SessionMeta, _canon_slot,
 )
+
+
+def _escape_braces(s: str) -> str:
+    """转义 literal `{...}` 防止 str.format() 把它当占位符触发 KeyError。
+
+    Plan2 P3/P4 共用：summarize_replay (turns_text) 与 iterate_resume
+    (original / prior_missing items / user_revised) 都要先过这一步，
+    否则用户内容含 `{xxx}` 就会静默 fallback。
+    """
+    return s.replace("{", "{{").replace("}", "}}")
 
 
 _ONBOARD_FALLBACK = OnboardResult(
@@ -158,7 +171,7 @@ async def summarize_replay(
     )
     # str.format() 把 `{x}` 当占位符。若用户回答里出现 literal `{...}`，未转义会触发
     # KeyError → 静默走 except 分支（LLM 都没被调用过）。这里转义一次更稳。
-    turns_text_safe = turns_text.replace("{", "{{").replace("}", "}}")
+    turns_text_safe = _escape_braces(turns_text)
     focus_human = ", ".join(focus_slots)
 
     prompt = _SUMMARIZE_REPLAY_PROMPT.format(
@@ -192,4 +205,79 @@ async def summarize_replay(
         delta_pp=delta_pp,
         sample_good_answer=sample,
         next_step=next_step,
+    )
+
+
+# ----------------- Plan2 P4: Resume iterate (Spec D §8) -----------------
+
+
+class _IterateResumeLLM(BaseModel):
+    """Internal LLM response schema for iterate_resume (Spec D §8.2)。"""
+    newly_covered: list[str] = Field(default_factory=list)
+    still_missing: list[str] = Field(default_factory=list)
+    coach_feedback: str = ""
+
+
+_ITERATE_RESUME_PROMPT = """\
+你是用户的简历教练。用户上一轮已收到 missing_evidence 清单，下面是新版本：
+
+[原始 resume]
+{original}
+
+[上一轮 missing_evidence]
+{prior_missing}
+
+[用户改后的 resume]
+{user_revised}
+
+请评估：
+- newly_covered: 上一轮 missing_evidence 中本次新版**确实**补到的条目（必须能在新版找到对应表述，不要凭空）
+- still_missing: 仍未补到 / 写得太空泛的条目（沿用原描述，不要重新措辞）
+- coach_feedback: 一段中文反馈，指出哪里做得好、哪里仍需具体化，落到具体动作
+
+要求：newly_covered 与 still_missing 的并集应为上一轮 missing_evidence 的子集，不要新增之外的条目。
+"""
+
+
+async def iterate_resume(
+    original: str,
+    prior_missing: list[str],
+    user_revised: str,
+    iteration_index: int,
+) -> ResumeRevision:
+    """Spec D §8 — 用户提交新版 resume，LLM 评估覆盖度并给反馈。
+
+    - still_missing 为空 → is_good_enough=True（结束迭代）
+    - LLM 失败 → fallback 保守认为未覆盖（still_missing = prior_missing）
+    """
+    prompt = _ITERATE_RESUME_PROMPT.format(
+        original=_escape_braces(original),
+        prior_missing="\n".join(f"- {_escape_braces(m)}" for m in prior_missing),
+        user_revised=_escape_braces(user_revised),
+    )
+
+    try:
+        result: _IterateResumeLLM = await call_deepseek(
+            messages=[{"role": "user", "content": prompt}],
+            response_schema=_IterateResumeLLM,
+            temperature=0.5,
+            max_tokens=800,
+        )
+        newly = list(result.newly_covered)
+        still = list(result.still_missing)
+        feedback = result.coach_feedback or "（暂无具体反馈）"
+    except Exception:
+        # Fallback：保守认为本轮没覆盖任何条目，让用户决定是否继续。
+        newly = []
+        still = list(prior_missing)
+        feedback = "LLM 暂时无响应，未能评估本轮修改。请稍后重试，或继续补充。"
+
+    return ResumeRevision(
+        iteration_index=iteration_index,
+        timestamp=datetime.now(),
+        user_text=user_revised,
+        coach_feedback=feedback,
+        newly_covered=newly,
+        still_missing=still,
+        is_good_enough=(len(still) == 0),
     )
