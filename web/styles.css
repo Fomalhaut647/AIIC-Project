@@ -793,7 +793,7 @@ textarea::placeholder { color: var(--text-2); }
 }
 
 @media (max-width: 600px) {
-  .nav-profile { right: 56px; padding: 4px 10px; font-size: 12px; }
+  .nav-profile { right: 60px; padding: 4px 10px; font-size: 12px; }  /* 4px 间距 vs theme-toggle 左边缘 (right:16 + 40 = 56) */
   .hero-stats { gap: 8px; }
   .stat-card { min-width: 100px; padding: 10px 12px; }
   .timeline li.replay-row { margin-left: 12px; }
