@@ -34,10 +34,17 @@ def test_query_excludes_used(bank_with_seed):
         assert second.id != first.id
 
 
-def test_query_no_match_returns_none(bank_with_seed):
-    card = bank_with_seed.query(target=Target.QIUZHI, state=InterviewStage.S6_MATCHING)
+def test_query_qiuzhi_s6_finds_match(bank_with_seed):
     # match_job_role_001 only applies_to=[求职]; 应该有结果
+    card = bank_with_seed.query(target=Target.QIUZHI, state=InterviewStage.S6_MATCHING)
     assert card is not None
+
+
+def test_query_no_match_returns_none(bank_with_seed):
+    # 任何 card 都不会有 related_state=DONE → query 应返回 None
+    # contract: interviewer.py 依赖此分支降级到 LLM 现场生成
+    card = bank_with_seed.query(target=Target.BAOYAN, state=InterviewStage.DONE)
+    assert card is None
 
 
 def test_hunhe_target_matches_all(bank_with_seed):
