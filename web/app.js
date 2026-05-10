@@ -344,8 +344,10 @@ document.getElementById("view-profile").addEventListener("click", (e) => {
     e.preventDefault();
     startReplay(t.dataset.parent, t.dataset.slot);  // P13
   } else if (action === "download") {
-    // anchor href 已经指向 export.md，浏览器自然下载；这里只追加日志
-    // 不 preventDefault, 让浏览器 download 触发
+    // 走 downloadMarkdown 让 409/404 错误能 surface 给用户而不是浏览器静默
+    // 跳到一个空白 page 显示 server error。
+    e.preventDefault();
+    downloadMarkdown(t.dataset.sid);  // P14
   } else if (action === "reuse") {
     e.preventDefault();
     reuseProject(t.dataset.name);  // P14
@@ -473,8 +475,117 @@ document.getElementById("mini-close").addEventListener("click", () => {
   loadProfile();
 });
 
+// ---------- Plan2 P14: resume iterate UI + Markdown export ----------
+
+document.getElementById("resume-iterate-btn").addEventListener("click", async () => {
+  const ta = document.getElementById("resume-iterate-input");
+  const text = ta.value.trim();
+  if (!text) {
+    alert("先粘贴改后的简历段落");
+    return;
+  }
+  if (!state.session_id) {
+    alert("当前没有 session（可能已过期）。回到首页重新开始。");
+    return;
+  }
+
+  const btn = document.getElementById("resume-iterate-btn");
+  btn.disabled = true;
+  btn.textContent = "Coach 评估中...";
+
+  let rev;
+  try {
+    rev = await postJson("/api/coach/resume_iterate", {
+      session_id: state.session_id,
+      user_revised_resume: text,
+    });
+  } catch (e) {
+    console.error("resume_iterate failed", e);
+    alert("Coach 评估失败：" + (e.detail || e.message));
+    btn.disabled = false;
+    btn.textContent = "让 Coach 看看";
+    return;
+  }
+
+  const fb = document.getElementById("resume-iterate-feedback");
+  fb.classList.remove("hidden", "feedback-good", "feedback-pending");
+  fb.classList.add(rev.is_good_enough ? "feedback-good" : "feedback-pending");
+  fb.innerHTML = `
+    <p class="iter-banner">${rev.is_good_enough ? "差不多可以了 ✨" : "还差一点"}</p>
+    <p>${escapeHtml(rev.coach_feedback || "")}</p>
+    <p>新覆盖：${escapeHtml((rev.newly_covered || []).join("、") || "（无）")}</p>
+    <p>仍差：${escapeHtml((rev.still_missing || []).join("、") || "（无）")}</p>
+  `;
+
+  const hist = document.getElementById("resume-iterate-history");
+  const list = document.getElementById("resume-iterate-history-list");
+  hist.classList.remove("hidden");
+  const li = document.createElement("li");
+  const ts = (rev.timestamp || "").replace("T", " ").slice(0, 16);
+  li.innerHTML = `
+    <strong>第 ${rev.iteration_index} 轮</strong>
+    <span style="color: var(--text-2); font-size: 0.85em;">· ${escapeHtml(ts)}</span>
+    <pre>${escapeHtml(rev.user_text || text)}</pre>
+    <p>${escapeHtml(rev.coach_feedback || "")}</p>
+  `;
+  list.appendChild(li);
+
+  ta.value = "";
+  btn.disabled = false;
+  btn.textContent = "让 Coach 看看";
+});
+
+async function downloadMarkdown(sessionId) {
+  // Browser-native download via fetch + blob (避免直接用 <a download> 失去错误处理)
+  try {
+    const resp = await apiGet(`/api/sessions/${encodeURIComponent(sessionId)}/export.md`);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cd = resp.headers.get("content-disposition") || "";
+    const m = cd.match(/filename="([^"]+)"/);
+    a.download = m ? m[1] : `projectprobe-${sessionId.slice(0, 8)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error("downloadMarkdown failed", e);
+    if (e.status === 409) {
+      alert("该 session 还没有完成 review，无法导出");
+    } else if (e.status === 404) {
+      alert("Session 不存在");
+    } else {
+      alert("导出失败：" + (e.detail || e.message));
+    }
+  }
+}
+
+document.getElementById("export-md-btn").addEventListener("click", () => {
+  if (!state.session_id) {
+    alert("当前没有可导出的 session");
+    return;
+  }
+  downloadMarkdown(state.session_id);
+});
+
+// dashboard timeline 上的「下载 .md」 anchor 之前是 native browser download；
+// 改成走 downloadMarkdown 让 409/404 错误能 surface 给用户。
+// 在 view-profile click 委托里 download branch 之前是 no-op，现在接管。
+function _fixupTimelineDownload() {
+  // 已在 view-profile click delegation 处理；此 hook 留给未来扩展。
+}
+
 function reuseProject(name) {
-  console.log("[P14 stub] reuseProject", name);
+  if (!name) return;
+  // 跳到 material 视图并预填项目名（用户可在此基础上编辑）
+  switchView("material");
+  const ta = document.getElementById("material-input");
+  if (ta) {
+    ta.value = name;
+    ta.focus();
+  }
 }
 
 // 启动后立刻探一次

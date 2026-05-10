@@ -856,3 +856,84 @@ textarea::placeholder { color: var(--text-2); }
 #mini-delta { font-weight: 600; }
 #mini-delta.positive { color: var(--good); }
 #mini-delta.negative { color: var(--bad); }
+
+/* ============================================================
+   Plan2 P14: Resume iterate UI on view-report
+   ============================================================ */
+
+.resume-iterate {
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 20px 0;
+  background: var(--bg-1);
+}
+.resume-iterate h4 { margin: 0 0 6px; color: var(--text-0); }
+.resume-iterate-hint {
+  margin: 0 0 12px;
+  color: var(--text-2);
+  font-size: 0.9em;
+}
+.resume-iterate textarea {
+  width: 100%;
+  min-height: 140px;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: inherit;
+  font-size: 0.95em;
+  resize: vertical;
+}
+.resume-iterate textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.resume-iterate button { margin-top: 10px; }
+
+#resume-iterate-feedback {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--bg-2);
+  border-left: 3px solid var(--accent);
+}
+#resume-iterate-feedback.feedback-good {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+}
+#resume-iterate-feedback.feedback-pending {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+#resume-iterate-feedback p { margin: 4px 0; }
+#resume-iterate-feedback .iter-banner { font-weight: 600; }
+
+#resume-iterate-history { margin-top: 14px; }
+#resume-iterate-history summary {
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 0.9em;
+}
+#resume-iterate-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+#resume-iterate-history-list li {
+  padding: 8px 12px;
+  margin: 6px 0;
+  border-left: 2px solid var(--border);
+  background: var(--bg-2);
+}
+#resume-iterate-history-list pre {
+  margin: 6px 0;
+  padding: 6px;
+  background: var(--bg-0);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-size: 0.85em;
+  color: var(--text-1);
+}

@@ -137,7 +137,23 @@
   <section id="view-report" class="view hidden">
     <h2 class="view-title">训练报告</h2>
     <div id="report-content"></div>
+
+    <!-- Plan2 P14: resume multi-round iterate UI -->
+    <section class="resume-iterate" id="resume-iterate-section">
+      <h4>改完了？让 Coach 看看（不限轮次）</h4>
+      <p class="resume-iterate-hint">把改后的简历段落粘贴在下面，Coach 会评估你是否真的覆盖了上一轮的 missing_evidence。</p>
+      <textarea id="resume-iterate-input" placeholder="改后的简历段落..."></textarea>
+      <button id="resume-iterate-btn" class="primary">让 Coach 看看</button>
+      <div id="resume-iterate-feedback" class="hidden"></div>
+      <details id="resume-iterate-history" class="hidden">
+        <summary>历次迭代</summary>
+        <ul id="resume-iterate-history-list"></ul>
+      </details>
+    </section>
+
+    <!-- Plan2 P14: markdown export + 既有 actions -->
     <div class="cta">
+      <button id="export-md-btn" class="secondary">导出为 Markdown</button>
       <button id="btn-regen-report" class="secondary">重新生成报告</button>
       <button id="btn-replay" class="primary">再来一场</button>
       <button id="btn-home" class="secondary">回到首页</button>
