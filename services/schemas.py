@@ -88,6 +88,10 @@ class InterviewPacket(BaseModel):
     focus_slots: list[str]
     constraints: list[str] = []
     question_policy: str = "项目优先 → 题库匹配 → 基础概念 → 八股兜底"
+    # Plan2 新增（Spec D §5.3）
+    replay_mode: bool = False
+    replay_focus_slots: list[str] = Field(default_factory=list)
+    parent_session_id: str | None = None
 
 
 class InterviewerOS(BaseModel):
@@ -122,7 +126,9 @@ class Evidence(BaseModel):
 class ResumeRewrite(BaseModel):
     original: str
     rewritten: str
-    missing_evidence: list[str]
+    missing_evidence: list[str] = Field(default_factory=list)
+    # Plan2 新增（Spec D §5.4）
+    revision_history: list[ResumeRevision] = Field(default_factory=list)
 
 
 class HumorCard(BaseModel):
@@ -180,3 +186,75 @@ class InterviewSession(BaseModel):
     turns: list[InterviewTurn] = []
     consecutive_vague_count: int = 0
     used_question_ids: list[str] = []
+
+
+# ----------------- Plan2 长期训练 -----------------
+
+def _canon_slot(s: str) -> str:
+    """Canonicalize slot name for cross-session counting (Spec D §7.4 / §11.1)."""
+    return s.strip().lower()
+
+
+class SessionMeta(BaseModel):
+    """Spec D §5.1 — UserProfile 时间线一行。"""
+    session_id: str
+    created_at: datetime
+    target: Target
+    project_summary_short: str
+    overall_score: int | None = None
+    weakness_tags: list[str] = Field(default_factory=list)
+    parent_session_id: str | None = None
+    is_replay: bool = False
+
+
+class UserProfile(BaseModel):
+    """Spec D §5.2 — 个人主页聚合视图。"""
+    user_id: str
+    created_at: datetime
+    sessions: list[SessionMeta] = Field(default_factory=list)
+    total_sessions: int = 0
+    average_score: float | None = None
+    recurring_weaknesses: dict[str, int] = Field(default_factory=dict)
+    projects: list[str] = Field(default_factory=list)
+
+    def add_session_meta(self, meta: SessionMeta) -> None:
+        """聚合：append + 重算 hero stats + 累计弱点 + 去重项目。"""
+        self.sessions.append(meta)
+        self.total_sessions = len(self.sessions)
+
+        scored = [m.overall_score for m in self.sessions if m.overall_score is not None]
+        self.average_score = sum(scored) / len(scored) if scored else None
+
+        for tag in meta.weakness_tags:
+            key = _canon_slot(tag)
+            self.recurring_weaknesses[key] = self.recurring_weaknesses.get(key, 0) + 1
+
+        if meta.project_summary_short and meta.project_summary_short not in self.projects:
+            self.projects.append(meta.project_summary_short)
+
+
+class ResumeRevision(BaseModel):
+    """Spec D §5.4 — 简历多轮迭代单条。"""
+    iteration_index: int
+    timestamp: datetime
+    user_text: str
+    coach_feedback: str
+    newly_covered: list[str] = Field(default_factory=list)
+    still_missing: list[str] = Field(default_factory=list)
+    is_good_enough: bool = False
+
+
+class ReplayMiniReport(BaseModel):
+    """Spec D §5.5 — 重练结束的迷你报告。"""
+    parent_session_id: str
+    replay_session_id: str
+    focus_slots: list[str]
+    coverage_before: float
+    coverage_after: float
+    delta_pp: float
+    sample_good_answer: str
+    next_step: str
+
+
+# Resolve forward reference: ResumeRewrite.revision_history -> list[ResumeRevision]
+ResumeRewrite.model_rebuild()
