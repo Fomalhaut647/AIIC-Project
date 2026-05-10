@@ -1330,6 +1330,13 @@ document.getElementById("toggle-speaker")?.addEventListener("click", () => {
     try { CURRENT_TTS_AUDIO.pause(); } catch (_) {}
     CURRENT_TTS_AUDIO = null;
   }
+  // Plan3.5 Bug 4: 翻 ON 时立即朗读当前问题——click 本身是 user gesture,
+  // 不会被 autoplay policy block; 这是已显示问题但 toggle 才打开的场景下
+  // 给用户即时反馈,确认 TTS 真的能听到。无 current_question 时 (home /
+  // profile view) 啥也不干。
+  if (state.speaker_on && state.current_question) {
+    fetchAndPlayTTS(state.current_question);
+  }
 });
 
 // 初始化 toggle 视觉 (基于 localStorage 恢复的 state)
@@ -1547,21 +1554,37 @@ async function fetchAndPlayTTS(text) {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   CURRENT_TTS_AUDIO = audio;
+  // Plan3.5 Bug 4: 加 visible playing indicator (speaker icon pulse)
+  const speakerBtn = document.getElementById("toggle-speaker");
   audio.addEventListener("ended", () => {
     URL.revokeObjectURL(url);
     if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+    if (speakerBtn) speakerBtn.classList.remove("tts-playing");
   });
   audio.addEventListener("error", () => {
     URL.revokeObjectURL(url);
     if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+    if (speakerBtn) speakerBtn.classList.remove("tts-playing");
+  });
+  audio.addEventListener("pause", () => {
+    if (speakerBtn) speakerBtn.classList.remove("tts-playing");
   });
   try {
     await audio.play();
+    if (speakerBtn) speakerBtn.classList.add("tts-playing");
   } catch (e) {
-    // autoplay block (浏览器策略要求用户手势) — 静默
+    // Plan3.5 Bug 4: 不再静默吞 reject——明确告诉用户「需点页面激活」。
+    // 常见触发场景: 页面加载时 localStorage speakerOn=true,首次 auto-render
+    // 触发 _maybeSpeakCurrentQuestion 在 user gesture activation 之前 → reject。
+    // 用户接到 toast 提示后再点 toggle off-on 即可重新触发 (此时 click 本身
+    // 是 user gesture)。
     console.warn("TTS autoplay blocked:", e);
+    if (typeof _plan3Toast === "function") {
+      _plan3Toast("浏览器阻止了语音自动播放,请点 🔈 关闭再打开重试", "warn");
+    }
     URL.revokeObjectURL(url);
     if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+    if (speakerBtn) speakerBtn.classList.remove("tts-playing");
   }
 }
 

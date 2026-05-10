@@ -1221,6 +1221,16 @@ textarea::placeholder { color: var(--text-2); }
   outline-offset: 2px;
 }
 
+/* Plan3.5 Bug 4: speaker icon 在 audio.play() 期间脉冲,提供"正在朗读"视觉反馈。
+   tts-playing class 由 fetchAndPlayTTS play()/ended/error 三处管理。 */
+#toggle-speaker.tts-playing {
+  animation: tts-pulse 1.4s ease-in-out infinite;
+}
+@keyframes tts-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(88,166,255,0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(88,166,255,0); }
+}
+
 /* nav-profile 让位给两个新 toggle (原 right:64 → 160) */
 .nav-profile { right: 160px; }
 
