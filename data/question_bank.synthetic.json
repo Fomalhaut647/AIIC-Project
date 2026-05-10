@@ -457,7 +457,7 @@
     "id": "syn_项目动机_001_910c85",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:05.111509+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目动机",
@@ -492,7 +492,7 @@
     "id": "syn_项目动机_002_8e335e",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:05.111540+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目动机",
@@ -527,7 +527,7 @@
     "id": "syn_项目动机_003_7c1ae5",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:05.111558+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目动机",
@@ -597,7 +597,7 @@
     "id": "syn_项目动机_005_01892c",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:05.111587+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目动机",
@@ -894,7 +894,7 @@
     "id": "syn_项目概述_013_13d735",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:55.155315+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目概述",
@@ -934,7 +934,7 @@
     "id": "syn_项目概述_014_292279",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:55.155361+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目概述",
@@ -974,7 +974,7 @@
     "id": "syn_项目概述_015_8efa00",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:55.155385+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目概述",
@@ -1093,7 +1093,7 @@
     "id": "syn_项目概述_018_fd9534",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:47:55.155469+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "项目概述",
@@ -1369,7 +1369,7 @@
     "id": "syn_技术深挖_025_878a95",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:48:58.639859+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "技术深挖",
@@ -1409,7 +1409,7 @@
     "id": "syn_技术深挖_026_eb88cc",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:48:58.639890+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "技术深挖",
@@ -1449,7 +1449,7 @@
     "id": "syn_技术深挖_027_65506e",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:48:58.639914+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "技术深挖",
@@ -1568,7 +1568,7 @@
     "id": "syn_技术深挖_030_41586e",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:48:58.639955+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "技术深挖",
@@ -1836,7 +1836,7 @@
     "id": "syn_实验验证_037_8c437e",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:49:50.029731+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "实验验证",
@@ -1872,7 +1872,7 @@
     "id": "syn_实验验证_038_4db613",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:49:50.029756+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "实验验证",
@@ -1907,7 +1907,7 @@
     "id": "syn_实验验证_039_f4d44f",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:49:50.029770+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "实验验证",
@@ -1943,7 +1943,7 @@
     "id": "syn_实验验证_040_b628a2",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:49:50.029782+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "实验验证",
@@ -2283,7 +2283,7 @@
     "id": "syn_失败反思_049_476a64",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:51:05.418330+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "失败反思",
@@ -2324,7 +2324,7 @@
     "id": "syn_失败反思_050_b2b3e7",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:51:05.418356+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "失败反思",
@@ -2447,7 +2447,7 @@
     "id": "syn_失败反思_053_a710d8",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:51:05.418398+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "失败反思",
@@ -2488,7 +2488,7 @@
     "id": "syn_失败反思_054_d757e1",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:51:05.418418+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "失败反思",
@@ -2755,7 +2755,7 @@
     "id": "syn_匹配与总结_061_b623d3",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:52:07.954979+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "匹配与总结",
@@ -2792,7 +2792,7 @@
     "id": "syn_匹配与总结_062_63096b",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:52:07.955005+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "匹配与总结",
@@ -2829,7 +2829,7 @@
     "id": "syn_匹配与总结_063_25cdf0",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:52:07.955024+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "匹配与总结",
@@ -2867,7 +2867,7 @@
     "id": "syn_匹配与总结_064_48e667",
     "source": "synthetic",
     "generated_at": "2026-05-10T03:52:07.955045+00:00",
-    "reviewed": false
+    "reviewed": true
   },
   {
     "category": "匹配与总结",
