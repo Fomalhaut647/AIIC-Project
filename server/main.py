@@ -60,10 +60,12 @@ from services.schemas import (
     ResumeRevision,
     RiskLevel,
     SessionMeta,
+    TTSRequest,
     UploadedFile,
     UploadResponse,
     UserModel,
 )
+from services.tts import synthesize_speech
 from services.store import SessionNotFound
 
 # Plan2 milestone-review polish: path-traversal guard for path-segment IDs.
@@ -737,3 +739,26 @@ async def upload_file(
         file_type=ext,
         parse_warnings=warnings,
     )
+
+
+# ----------------- Plan3 G3: TTS 合成 -----------------
+
+
+@app.post("/api/tts/synthesize")
+async def tts_synthesize(req: TTSRequest):
+    """Spec E §9.2 — MiMo TTS；失败 → 503，前端静默降级。"""
+    if not req.text.strip():
+        raise HTTPException(status_code=422, detail="text is empty")
+    if len(req.text) > 4000:
+        raise HTTPException(status_code=422, detail="text too long (max 4000 chars)")
+
+    try:
+        audio = await synthesize_speech(req.text, req.voice)
+    except KeyError:
+        # MIMO_API_KEY 未配 → 配置错；spec 要求统一 503 但 detail 区分便于运维诊断
+        raise HTTPException(status_code=503, detail="TTS not configured (MIMO_API_KEY missing)")
+    except Exception:
+        # 上游网络 / HTTP / timeout 错 → 503 静默降级
+        raise HTTPException(status_code=503, detail="TTS upstream unavailable")
+
+    return Response(content=audio, media_type="audio/mpeg")
