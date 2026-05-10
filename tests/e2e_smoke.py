@@ -1,10 +1,14 @@
 """Demo e2e smoke — drives the full ProjectProbe path through the API.
 
-Not part of the test suite (LLM hits cost tokens). Used by C11 to validate
-the demo path before declaring Plan1C complete.
+Not part of the test suite (LLM hits cost tokens; pytest skips files without
+a `test_` prefix). Used by C11 to validate the demo path before declaring
+Plan1C complete.
 
-Usage: pixi run python .claude/e2e_smoke.py
-Requires: server running at 127.0.0.1:8000 (or port from $PORT)
+Usage:
+    PORT=8765 pixi run uvicorn server.main:app --host 127.0.0.1 --port 8765 &
+    PORT=8765 pixi run python tests/e2e_smoke.py
+
+Requires: server running at 127.0.0.1:$PORT (default 8000) with .env loaded.
 """
 from __future__ import annotations
 
