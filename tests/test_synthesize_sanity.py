@@ -1,4 +1,10 @@
-from scripts.synthesize_questions import is_card_valid
+from unittest.mock import patch
+
+import httpx
+import pytest
+
+from scripts.synthesize_questions import _synthesize_batch, is_card_valid
+from services.schemas import InterviewStage
 
 
 def _base_card():
@@ -58,3 +64,18 @@ def test_whitespace_only_question_rejected():
     c = _base_card()
     c["question"] = "  \n  "
     assert is_card_valid(c) is False
+
+
+@pytest.mark.parametrize("status_code", [401, 429, 500])
+async def test_synthesize_batch_swallows_http_errors(status_code):
+    # PR-B review I-int1: services.llm.call_deepseek 的 fallback 只兜 JSON 校验失败；
+    # HTTPStatusError (4xx/5xx) 透传 → _synthesize_batch 必须自己 catch，否则 _main abort
+    # 丢失所有已合成 batch。Spec §7 要求 "已合成的写入文件" + 函数注释承诺 "失败 = 空批次"。
+    async def fake_call(*args, **kwargs):
+        req = httpx.Request("POST", "https://api.deepseek.com/v1/chat/completions")
+        resp = httpx.Response(status_code, request=req)
+        resp.raise_for_status()
+
+    with patch("scripts.synthesize_questions.call_deepseek", side_effect=fake_call):
+        result = await _synthesize_batch(InterviewStage.S1_MOTIVATION, [], 6)
+    assert result == []

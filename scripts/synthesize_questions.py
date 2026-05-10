@@ -121,11 +121,18 @@ async def _synthesize_batch(
             slot_list=REQUIRED_SLOTS.get(state, []),
         )},
     ]
-    fallback = _CardBatch(cards=[])  # 失败 = 空批次（不阻塞）
-    batch = await call_deepseek(
-        msgs, response_schema=_CardBatch,
-        temperature=0.9, max_tokens=4000, fallback=fallback,
-    )
+    fallback = _CardBatch(cards=[])  # JSON-level 失败 = 空批次（call_deepseek 内部 fallback）
+    # 注意: services.llm.call_deepseek 的 fallback 只兜 JSON 解析/校验失败；
+    # HTTP 4xx/5xx (httpx.HTTPStatusError) + 非 _NETWORK_RETRYABLE 网络错误会透传。
+    # spec §7 + 本函数承诺 "失败 = 不阻塞" → 在此 catch 一层保住已合成 batch。
+    try:
+        batch = await call_deepseek(
+            msgs, response_schema=_CardBatch,
+            temperature=0.9, max_tokens=4000, fallback=fallback,
+        )
+    except Exception as e:
+        print(f"  ⚠ batch failed ({type(e).__name__}: {e}); skipping")
+        return []
     return batch.cards
 
 
