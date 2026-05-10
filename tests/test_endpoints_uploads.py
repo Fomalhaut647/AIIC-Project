@@ -127,3 +127,48 @@ def test_upload_anonymous_default(client):
         files={"file": ("note.md", b"# x", "text/markdown")},
     )
     assert r.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "bad_user_id",
+    [
+        "../escape",      # 经典 path traversal
+        "a/b",            # 嵌入分隔符
+        "u space",        # 空格
+        "u\nbreak",       # 换行
+        "x" * 65,         # 超过 64 字符
+        "汉字",            # 非 ASCII
+        # 注意：空字符串被 fastapi Form("anonymous") 当作未提供，
+        # fallback 到 default "anonymous"（合法 user_id），不会触发 400
+    ],
+)
+def test_upload_rejects_invalid_user_id(client, bad_user_id):
+    """user_id 必须 [A-Za-z0-9_-]{1,64}；防 path traversal + control chars。"""
+    r = client.post(
+        "/api/uploads",
+        files={"file": ("note.md", b"# x", "text/markdown")},
+        data={"user_id": bad_user_id},
+    )
+    assert r.status_code == 400, f"user_id {bad_user_id!r} unexpectedly accepted"
+
+
+def test_upload_rollback_on_parse_failure(client, tmp_path, monkeypatch):
+    """write 成功 + parse 失败 → raw_path 被 unlink，user 目录不留 orphan。"""
+
+    async def fake_parse(*args, **kwargs):
+        raise ValueError("synthetic parse fail")
+
+    monkeypatch.setattr("server.main.parse_file", fake_parse)
+
+    r = client.post(
+        "/api/uploads",
+        files={"file": ("rollback.md", b"# x", "text/markdown")},
+        data={"user_id": "u-rollback"},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "parse failed"
+
+    user_dir = tmp_path / "uploads" / "u-rollback"
+    if user_dir.exists():
+        # 目录可能被 mkdir 创建但应无文件残留
+        assert list(user_dir.glob("*")) == []
