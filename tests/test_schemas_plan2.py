@@ -1,9 +1,6 @@
 """Plan2 schemas tests — Spec D §5."""
 from datetime import datetime
 
-import pytest
-from pydantic import ValidationError
-
 from services.schemas import (
     InterviewPacket,
     ReplayMiniReport,

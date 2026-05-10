@@ -123,6 +123,17 @@ class Evidence(BaseModel):
     suggestion: str
 
 
+class ResumeRevision(BaseModel):
+    """Spec D §5.4 — 简历多轮迭代单条（Plan2 类型，定义在此以满足 ResumeRewrite 的前向引用；其余 Plan2 schemas 见文件末尾段）。"""
+    iteration_index: int
+    timestamp: datetime
+    user_text: str
+    coach_feedback: str
+    newly_covered: list[str] = Field(default_factory=list)
+    still_missing: list[str] = Field(default_factory=list)
+    is_good_enough: bool = False
+
+
 class ResumeRewrite(BaseModel):
     original: str
     rewritten: str
@@ -233,17 +244,6 @@ class UserProfile(BaseModel):
             self.projects.append(meta.project_summary_short)
 
 
-class ResumeRevision(BaseModel):
-    """Spec D §5.4 — 简历多轮迭代单条。"""
-    iteration_index: int
-    timestamp: datetime
-    user_text: str
-    coach_feedback: str
-    newly_covered: list[str] = Field(default_factory=list)
-    still_missing: list[str] = Field(default_factory=list)
-    is_good_enough: bool = False
-
-
 class ReplayMiniReport(BaseModel):
     """Spec D §5.5 — 重练结束的迷你报告。"""
     parent_session_id: str
@@ -254,7 +254,3 @@ class ReplayMiniReport(BaseModel):
     delta_pp: float
     sample_good_answer: str
     next_step: str
-
-
-# Resolve forward reference: ResumeRewrite.revision_history -> list[ResumeRevision]
-ResumeRewrite.model_rebuild()
