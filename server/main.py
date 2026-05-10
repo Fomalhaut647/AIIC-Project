@@ -34,6 +34,13 @@ from services.coach import (
     onboard as coach_onboard,
     plan as coach_plan,
     review as coach_review,
+    iterate_resume,
+    summarize_replay,
+    compute_replay_coverage,
+)
+from services.interviewer import (
+    start as interviewer_start,
+    build_replay_packet,
 )
 from services.llm import call_deepseek
 from services.prompts import PROFILE_PARSE_SYSTEM
@@ -42,10 +49,13 @@ from services.schemas import (
     EvaluationReport,
     InterviewerOS,
     InterviewPacket,
+    InterviewSession,
     InterviewStage,
     InterviewTurn,
     OnboardResult,
     QuestionSource,
+    ReplayMiniReport,
+    ResumeRevision,
     RiskLevel,
     SessionMeta,
     UserModel,
@@ -106,6 +116,24 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, title="ProjectProbe v2")
+
+
+def _load_session_anywhere(sid: str) -> InterviewSession | None:
+    """Load InterviewSession from in-memory store, falling back to disk JSON.
+
+    Plan2 P9: replay/finish + resume_iterate need session access that survives
+    server restarts (in-memory store dropped) — disk dump is the source of truth
+    after restart. Returning None signals 404 to the caller.
+    """
+    if app.state.store is None:
+        return None
+    try:
+        return app.state.store.get(sid)
+    except SessionNotFound:
+        d = app.state.store.load_session_dict(sid)
+        if d is None:
+            return None
+        return InterviewSession.model_validate(d)
 
 
 # Static frontend (web/ ↔ /static/*); index.html served at /.
@@ -465,3 +493,127 @@ async def export_session_markdown(session_id: str):
         media_type="text/markdown; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ============================================================
+# Plan2 P9: replay + replay/finish + resume_iterate — Spec D §6.1 / §7 / §8
+# ============================================================
+
+
+class _ReplayReq(BaseModel):
+    parent_session_id: str
+    focus_slots: list[str]
+    user_id: str = "anonymous"
+
+
+class _ReplayFinishReq(BaseModel):
+    session_id: str
+    user_id: str = "anonymous"
+
+
+class _ResumeIterateReq(BaseModel):
+    session_id: str
+    user_revised_resume: str
+    user_id: str = "anonymous"
+
+
+@app.post("/api/interviewer/replay")
+async def api_interviewer_replay(body: _ReplayReq):
+    """Spec D §6.1 / §7.2 — fork replay session 自 parent_session_id."""
+    if app.state.store is None or app.state.bank is None:
+        raise HTTPException(status_code=503, detail="services not ready")
+    parent = _load_session_anywhere(body.parent_session_id)
+    if parent is None:
+        raise HTTPException(status_code=404, detail="parent session not found")
+
+    try:
+        replay_packet = build_replay_packet(
+            parent_packet=parent.packet,
+            focus_slots=body.focus_slots,
+            parent_session_id=body.parent_session_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    sid, first_turn = await interviewer_start(
+        replay_packet, parent.user_model, app.state.bank, app.state.store,
+    )
+    return {
+        "session_id": sid,
+        "state": first_turn.state,
+        "question": first_turn.question,
+        "interviewer_os": first_turn.interviewer_os.model_dump(mode="json"),
+        "focus_slots": replay_packet.replay_focus_slots,
+    }
+
+
+@app.post("/api/interviewer/replay/finish")
+async def api_interviewer_replay_finish(body: _ReplayFinishReq):
+    """Spec D §6.1 / §7.5 — compute mini-report. session must be a replay session."""
+    if app.state.store is None:
+        raise HTTPException(status_code=503, detail="store not ready")
+    session = _load_session_anywhere(body.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    if not session.packet.replay_mode:
+        raise HTTPException(status_code=400, detail="session is not a replay session")
+
+    parent_sid = session.packet.parent_session_id
+    parent = _load_session_anywhere(parent_sid) if parent_sid else None
+
+    focus_slots = session.packet.replay_focus_slots
+    parent_turns = parent.turns if parent else []
+
+    coverage_before = compute_replay_coverage(parent_turns, focus_slots)
+
+    parent_meta = SessionMeta(
+        session_id=parent_sid or "",
+        # parent created_at not tracked on InterviewSession; use now() as approx.
+        # TODO: thread real created_at through SessionStore.create() so mini-report
+        # parent_meta.created_at reflects actual session start time.
+        created_at=datetime.now(),
+        target=parent.packet.target if parent else session.packet.target,
+        project_summary_short=(
+            parent.packet.project_summary if parent else session.packet.project_summary
+        )[:80],
+    )
+
+    mini = await summarize_replay(
+        parent_meta=parent_meta,
+        replay_session_id=body.session_id,
+        replay_turns=session.turns,
+        focus_slots=focus_slots,
+        coverage_before=coverage_before,
+    )
+    return mini.model_dump(mode="json")
+
+
+@app.post("/api/coach/resume_iterate", response_model=ResumeRevision)
+async def api_coach_resume_iterate(body: _ResumeIterateReq) -> ResumeRevision:
+    """Spec D §6.1 / §8.2 — multi-round resume iteration."""
+    if app.state.store is None:
+        raise HTTPException(status_code=503, detail="store not ready")
+    session = _load_session_anywhere(body.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    if session.evaluation_report is None:
+        raise HTTPException(
+            status_code=409,
+            detail="session has no evaluation_report; call /api/coach/review first",
+        )
+
+    rr = session.evaluation_report.resume_rewrite
+    iteration_index = len(rr.revision_history) + 1
+    revision = await iterate_resume(
+        original=rr.original,
+        prior_missing=list(rr.missing_evidence),
+        user_revised=body.user_revised_resume,
+        iteration_index=iteration_index,
+    )
+
+    # Mutate session in-place + persist
+    rr.revision_history.append(revision)
+    rr.missing_evidence = list(revision.still_missing)
+    app.state.store.persist(session)
+
+    return revision
