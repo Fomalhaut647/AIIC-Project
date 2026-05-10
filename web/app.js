@@ -136,3 +136,63 @@ function escapeHtml(s) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 }
+
+// ============================================================
+// ONBOARDING — wires chat to /api/coach/onboard
+// ============================================================
+
+$("#btn-onboarding-send").addEventListener("click", sendOnboarding);
+$("#onboarding-input").addEventListener("keydown", (e) => {
+  // Cmd/Ctrl+Enter sends
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    sendOnboarding();
+  }
+});
+
+async function sendOnboarding() {
+  const input = $("#onboarding-input");
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  appendChat("user", msg);
+  input.value = "";
+  state.history.push({ role: "user", content: msg });
+  setOnboardingBusy(true, "Coach 正在思考...");
+
+  try {
+    const result = await postJson("/api/coach/onboard", {
+      user_message: msg,
+      // history excludes the message we just pushed (sent as user_message)
+      history: state.history.slice(0, -1),
+    });
+
+    if (result.need_more_info) {
+      const reply = (result.followup_questions || []).join("\n") ||
+                    "我还需要再了解一些信息，能再多说两句吗？";
+      appendChat("coach", reply);
+      state.history.push({ role: "assistant", content: reply });
+    } else {
+      state.user_model = result.user_model;
+      state.packet = result.recommended_packet;
+      const target = result.user_model && result.user_model.target;
+      const targetLabel = target ? `（target=${target}）` : "";
+      appendChat(
+        "coach",
+        `好。我已经记下你的目标 ${targetLabel}。接下来请把你的项目经历粘贴进来。`,
+      );
+      // brief pause so user can read the confirmation
+      setTimeout(() => switchView("material"), 1200);
+    }
+  } catch (e) {
+    appendChat("coach", "（出错了）" + e.message);
+  } finally {
+    setOnboardingBusy(false);
+  }
+}
+
+function setOnboardingBusy(busy, label) {
+  const btn = $("#btn-onboarding-send");
+  btn.disabled = busy;
+  btn.textContent = busy ? (label || "...") : "发送";
+}
