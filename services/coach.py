@@ -112,6 +112,7 @@ async def review(
     return await call_deepseek(
         messages, response_schema=EvaluationReport,
         temperature=0.7, max_tokens=4000, fallback=fallback,
+        timeout=180.0,
     )
 
 

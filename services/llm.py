@@ -44,7 +44,7 @@ _NETWORK_RETRYABLE = (
 )
 
 
-async def _post_chat(messages, temperature, max_tokens, *, json_mode: bool = False):
+async def _post_chat(messages, temperature, max_tokens, *, json_mode: bool = False, timeout: float = 60.0):
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                "Content-Type": "application/json"}
     body = {
@@ -55,20 +55,20 @@ async def _post_chat(messages, temperature, max_tokens, *, json_mode: bool = Fal
     }
     if json_mode:
         body["response_format"] = {"type": "json_object"}
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.post(f"{DEEPSEEK_BASE_URL}/v1/chat/completions",
                                  headers=headers, json=body)
         resp.raise_for_status()
         return resp
 
 
-async def _post_chat_with_retry(messages, temperature, max_tokens, *, json_mode: bool = False):
+async def _post_chat_with_retry(messages, temperature, max_tokens, *, json_mode: bool = False, timeout: float = 60.0):
     """Spec §7: 网络超时 / ConnectError → sleep 5s 后 retry once；仍失败 → 抛出供上层 fallback。"""
     try:
-        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode)
+        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode, timeout=timeout)
     except _NETWORK_RETRYABLE:
         await asyncio.sleep(_NETWORK_RETRY_DELAY_S)
-        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode)
+        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode, timeout=timeout)
 
 
 def _extract_content(resp) -> str:
@@ -82,6 +82,7 @@ async def call_deepseek(
     temperature: float = 0.7,
     max_tokens: int = 2000,
     fallback: T | str | None = None,
+    timeout: float = 60.0,
 ) -> T | str:
     """See Spec A §3.1 for full contract."""
     started = time.time()
@@ -94,7 +95,7 @@ async def call_deepseek(
         msgs[-1]["content"] = (msgs[-1]["content"]
                                + JSON_OUTPUT_INSTRUCTION.format(schema_json=schema_json))
         try:
-            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=True)
+            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=True, timeout=timeout)
         except _NETWORK_RETRYABLE:
             if fallback is not None:
                 _log(role, 0, False, True, started)
@@ -116,7 +117,7 @@ async def call_deepseek(
             try:
                 resp2 = await _post_chat_with_retry(
                     [*msgs, {"role": "assistant", "content": content}, repair_msg],
-                    temperature, max_tokens, json_mode=True,
+                    temperature, max_tokens, json_mode=True, timeout=timeout,
                 )
             except _NETWORK_RETRYABLE:
                 if fallback is not None:
@@ -135,7 +136,7 @@ async def call_deepseek(
                 raise LLMSchemaError(f"repair failed: {content2[:200]}")
     else:
         try:
-            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=False)
+            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=False, timeout=timeout)
         except _NETWORK_RETRYABLE:
             if fallback is not None:
                 _log(role, 0, False, True, started)
