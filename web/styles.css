@@ -798,3 +798,61 @@ textarea::placeholder { color: var(--text-2); }
   .stat-card { min-width: 100px; padding: 10px 12px; }
   .timeline li.replay-row { margin-left: 12px; }
 }
+
+/* ============================================================
+   Plan2 P13: Replay banner + mini-report modal
+   ============================================================ */
+
+.replay-banner {
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 4px;
+  margin: 12px 0;
+  font-weight: 500;
+  font-size: 0.95em;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 16px;
+}
+.modal.hidden { display: none; }
+.modal-content {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px 28px;
+  max-width: 640px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  color: var(--text-0);
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal-content h3 {
+  margin: 0 0 12px;
+  color: var(--text-0);
+}
+.modal-content .modal-focus,
+.modal-content .modal-coverage,
+.modal-content .modal-sample,
+.modal-content .modal-next { margin: 8px 0; color: var(--text-1); }
+.modal-content blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 6px 12px;
+  margin: 8px 0 14px;
+  color: var(--text-1);
+  background: var(--bg-2);
+  border-radius: 0 4px 4px 0;
+}
+.modal-coverage { font-family: monospace; }
+#mini-delta { font-weight: 600; }
+#mini-delta.positive { color: var(--good); }
+#mini-delta.negative { color: var(--bad); }

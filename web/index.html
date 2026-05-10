@@ -144,6 +144,24 @@
     </div>
   </section>
 
+  <!-- REPLAY MINI-REPORT MODAL (Plan2 P13) -->
+  <div id="replay-mini-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="mini-title">
+    <div class="modal-content">
+      <h3 id="mini-title">重练完成 ✨</h3>
+      <p class="modal-focus">围绕：<span id="mini-focus"></span></p>
+      <p class="modal-coverage">
+        覆盖度 <span id="mini-cov-before"></span>% → <span id="mini-cov-after"></span>%
+        （<span id="mini-delta"></span>）
+      </p>
+      <p class="modal-sample"><strong>这一轮答得最好的：</strong></p>
+      <blockquote id="mini-sample"></blockquote>
+      <p class="modal-next"><strong>下一步建议：</strong> <span id="mini-next"></span></p>
+      <div class="cta">
+        <button id="mini-close" class="primary">回到我的训练</button>
+      </div>
+    </div>
+  </div>
+
   <!-- PROFILE (Plan2 P10) -->
   <section id="view-profile" class="view hidden">
     <div class="topbar"><button class="link" id="btn-profile-back">← 返回首页</button></div>

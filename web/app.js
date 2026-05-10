@@ -23,6 +23,10 @@ const state = {
   turns: [],              // accumulated InterviewTurn[]
   report: null,
   is_demo: false,
+  // Plan2 P13 replay flow
+  is_replay: false,
+  parent_session_id: null,
+  replay_focus_slots: [],
 };
 
 // Hard-coded demo project text — financial-AI assistant from overview.md §14.2.
@@ -357,10 +361,118 @@ if (_emptyLink) {
   });
 }
 
-// stubs filled in P13/P14
-function startReplay(parentId, focusSlot) {
-  console.log("[P13 stub] startReplay", parentId, focusSlot);
+// ---------- Plan2 P13: replay flow ----------
+
+async function startReplay(parentSessionId, focusSlot) {
+  let result;
+  try {
+    result = await postJson("/api/interviewer/replay", {
+      parent_session_id: parentSessionId,
+      focus_slots: [focusSlot],
+    });
+  } catch (e) {
+    console.error("startReplay failed", e);
+    alert("启动重练失败：" + (e.detail || e.message));
+    return;
+  }
+
+  // Inject replay state for the interview view
+  state.session_id = result.session_id;
+  state.is_replay = true;
+  state.parent_session_id = parentSessionId;
+  state.replay_focus_slots = [focusSlot];
+  state.current_question = result.question;
+  state.current_state = result.state;
+  state.current_focus_slots = result.focus_slots || [focusSlot];
+  state.current_os = result.interviewer_os;
+  state.turns = [];
+  state.report = null;
+
+  switchView("interview");
+  _showReplayBanner(`重练模式：只追问「${focusSlot}」`);
+
+  // Mirror v2 renderInterviewView logic to populate the interview view
+  $("#interview-stage").textContent = formatStage(state.current_state);
+  $("#interview-focus").textContent = state.current_focus_slots.join(" / ") || "—";
+  $("#interview-question").textContent = state.current_question || "";
+  $("#interview-input").value = "";
+  hide("#interview-feedback");
+  hide("#btn-finish");
+  show("#btn-interview-submit");
+  if (state.current_os) {
+    show("#btn-cheat-toggle");
+    renderCheatPanel(state.current_os);
+    show("#cheat-panel");
+    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
+  } else {
+    hide("#btn-cheat-toggle");
+    hide("#cheat-panel");
+  }
+  $("#interview-transcript").innerHTML = "";
 }
+
+function _showReplayBanner(text) {
+  const view = document.getElementById("view-interview");
+  let banner = document.getElementById("replay-banner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "replay-banner";
+    banner.className = "replay-banner";
+    // Insert AFTER the topbar exit button (so banner sits above interview-banner)
+    const topbar = view.querySelector(".topbar");
+    if (topbar && topbar.nextSibling) view.insertBefore(banner, topbar.nextSibling);
+    else view.insertBefore(banner, view.firstChild);
+  }
+  banner.textContent = text;
+  banner.classList.remove("hidden");
+}
+
+function _hideReplayBanner() {
+  const banner = document.getElementById("replay-banner");
+  if (banner) banner.classList.add("hidden");
+}
+
+async function finishReplay() {
+  let mini;
+  try {
+    mini = await postJson("/api/interviewer/replay/finish", {
+      session_id: state.session_id,
+    });
+  } catch (e) {
+    console.error("finishReplay failed", e);
+    alert("生成重练 mini-report 失败：" + (e.detail || e.message));
+    return;
+  }
+
+  document.getElementById("mini-focus").textContent = (mini.focus_slots || []).join("、");
+  document.getElementById("mini-cov-before").textContent = Math.round((mini.coverage_before || 0) * 100);
+  document.getElementById("mini-cov-after").textContent = Math.round((mini.coverage_after || 0) * 100);
+  const deltaEl = document.getElementById("mini-delta");
+  const deltaPP = mini.delta_pp || 0;
+  deltaEl.textContent = (deltaPP >= 0 ? "+" : "") + Math.round(deltaPP) + "pp";
+  deltaEl.classList.remove("positive", "negative");
+  if (deltaPP > 0) deltaEl.classList.add("positive");
+  else if (deltaPP < 0) deltaEl.classList.add("negative");
+
+  document.getElementById("mini-sample").textContent = mini.sample_good_answer || "—";
+  document.getElementById("mini-next").textContent = mini.next_step || "—";
+  document.getElementById("replay-mini-modal").classList.remove("hidden");
+}
+
+document.getElementById("mini-close").addEventListener("click", () => {
+  document.getElementById("replay-mini-modal").classList.add("hidden");
+  // Clear replay state and return to dashboard so timeline now shows the replay row
+  state.is_replay = false;
+  state.replay_focus_slots = [];
+  state.parent_session_id = null;
+  state.session_id = null;
+  state.turns = [];
+  _hideReplayBanner();
+  refreshProfileDot();  // dot may newly appear if first session
+  switchView("profile");
+  loadProfile();
+});
+
 function reuseProject(name) {
   console.log("[P14 stub] reuseProject", name);
 }
@@ -620,10 +732,21 @@ async function submitAnswer() {
     if (!result.should_continue) {
       // Interview ended — keep the feedback visible, swap submit→finish
       hide("#btn-interview-submit");
-      show("#btn-finish");
       $("#interview-stage").textContent = "面试结束";
-      $("#interview-question").textContent =
-        "本轮面试结束。点 [结束面试 → 看报告] 让 Coach 写复盘。";
+      if (state.is_replay) {
+        // Plan2 P13: replay session 自动跳到 mini-report (不走 review/coach)
+        $("#interview-question").textContent =
+          "重练完成。正在生成 mini-report...";
+        renderTranscript();
+        submit.disabled = false;
+        submit.textContent = "提交回答";
+        await finishReplay();
+        return;
+      } else {
+        show("#btn-finish");
+        $("#interview-question").textContent =
+          "本轮面试结束。点 [结束面试 → 看报告] 让 Coach 写复盘。";
+      }
     } else {
       // Re-render banner / question / cheat panel for next turn
       $("#interview-stage").textContent = formatStage(state.current_state);
