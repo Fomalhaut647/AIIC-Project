@@ -22,15 +22,19 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from services import coach
+from services import coach, interviewer
 from services.llm import call_deepseek
 from services.prompts import PROFILE_PARSE_SYSTEM
 from services.schemas import (
     CoachPlanResult,
+    EvaluationReport,
     InterviewPacket,
+    InterviewStage,
+    InterviewTurn,
     OnboardResult,
     UserModel,
 )
+from services.store import SessionNotFound
 
 
 def _git_short_hash() -> str:
@@ -162,3 +166,75 @@ class _PlanReq(BaseModel):
 @app.post("/api/coach/plan", response_model=CoachPlanResult)
 async def api_coach_plan(body: _PlanReq) -> CoachPlanResult:
     return await coach.plan(body.user_model, body.project_summary)
+
+
+# ============================================================
+# Interviewer endpoints — Spec C §2.5 / §2.6
+# ============================================================
+
+
+class _StartReq(BaseModel):
+    interview_packet: InterviewPacket
+    user_model: UserModel
+
+
+class _StartResp(BaseModel):
+    session_id: str
+    state: InterviewStage
+    question: str
+    interviewer_os: dict  # InterviewerOS as plain dict (frontend convenience)
+    focus_slots: list[str]
+
+
+@app.post("/api/interviewer/start", response_model=_StartResp)
+async def api_interviewer_start(body: _StartReq) -> _StartResp:
+    if app.state.bank is None or app.state.store is None:
+        raise HTTPException(
+            status_code=503,
+            detail="services.store / question_bank not initialised",
+        )
+    sid, turn = await interviewer.start(
+        body.interview_packet,
+        body.user_model,
+        app.state.bank,
+        app.state.store,
+    )
+    return _StartResp(
+        session_id=sid,
+        state=turn.state,
+        question=turn.question,
+        interviewer_os=turn.interviewer_os.model_dump(mode="json"),
+        focus_slots=body.interview_packet.focus_slots,
+    )
+
+
+class _NextReq(BaseModel):
+    session_id: str
+    answer: str
+
+
+class _NextResp(BaseModel):
+    turn: InterviewTurn
+    should_continue: bool
+    next_state: InterviewStage
+
+
+@app.post("/api/interviewer/next", response_model=_NextResp)
+async def api_interviewer_next(body: _NextReq) -> _NextResp:
+    if app.state.bank is None or app.state.store is None:
+        raise HTTPException(status_code=503, detail="services not ready")
+    if not body.answer.strip():
+        raise HTTPException(status_code=400, detail="answer is empty")
+    try:
+        turn, cont, st = await interviewer.next_turn(
+            body.session_id,
+            body.answer,
+            app.state.bank,
+            app.state.store,
+        )
+    except SessionNotFound:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "session_expired", "message": "请重新开始训练"},
+        )
+    return _NextResp(turn=turn, should_continue=cont, next_state=st)
