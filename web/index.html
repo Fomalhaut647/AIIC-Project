@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ProjectProbe — 项目深挖训练器</title>
+  <meta name="description" content="把你的 AI 项目追问到讲明白。模拟保研复试 / 岗位面试，对项目连续追问，结束后告诉你哪里答空、哪里被追杀、简历怎么改、下一轮练什么。">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <section id="view-home" class="view">
+    <header class="hero">
+      <div class="hero-eyebrow">ProjectProbe · 项目深挖训练器</div>
+      <h1 class="hero-title">
+        不是再问你一堆<span class="strike">八股题</span>，<br>
+        而是把你的项目<span class="hl">追问到讲明白</span>。
+      </h1>
+      <p class="hero-sub">
+        模拟 AI 保研复试 / 岗位面试，对你的项目进行<b>连续追问</b>。
+        结束后告诉你：哪里答空、哪里容易被追杀、简历应该怎么改、下一轮该练什么。
+      </p>
+      <div class="cta">
+        <button id="btn-start" class="primary">开始训练</button>
+        <button id="btn-demo" class="secondary">使用示例项目体验 →</button>
+      </div>
+      <div class="hero-pills">
+        <span class="pill">Coach 懂你</span>
+        <span class="pill">Interviewer 不懂你</span>
+        <span class="pill">Report 救你</span>
+      </div>
+    </header>
+
+    <div class="why">
+      <div class="why-card">
+        <div class="why-num">1</div>
+        <div class="why-body">
+          <h3>状态机追问，不水聊</h3>
+          <p>S1 动机 → S2 概述 → S3 技术 → S4 实验 → S5 反思 → S6 匹配。每个状态有 required slots，不覆盖不放行。</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <div class="why-num">2</div>
+        <div class="why-body">
+          <h3>作弊模式：偷看面试官脑回路</h3>
+          <p>每一轮都能展开看：面试官真正担心什么、为什么追问这道题、想听到什么。这是 ChatGPT 没有的元认知。</p>
+        </div>
+      </div>
+      <div class="why-card">
+        <div class="why-num">3</div>
+        <div class="why-body">
+          <h3>报告 = 简历改写 + 训练计划 + 高价值 bug</h3>
+          <p>不只给个分。给到原文 → 改写、最危险的 3 个追问、下一轮该重练哪个状态。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONBOARDING -->
+  <section id="view-onboarding" class="view hidden">
+    <div class="topbar"><button class="link" id="btn-onboarding-back">← 返回首页</button></div>
+    <h2 class="view-title">先让训练组长 Coach 了解你</h2>
+    <p class="view-sub">告诉我场景（保研 / 求职 / 都准备）、目标项目方向、想报的实验室或公司。</p>
+    <div id="onboarding-history" class="chat" aria-live="polite"></div>
+    <div class="composer">
+      <textarea id="onboarding-input" placeholder="比如：我准备保研人工智能创新中心，项目是一个 AI 财会助理，想了解会被怎么追问..." rows="3"></textarea>
+      <button id="btn-onboarding-send" class="primary">发送</button>
+    </div>
+  </section>
+
+  <!-- MATERIAL INPUT -->
+  <section id="view-material" class="view hidden">
+    <div class="topbar"><button class="link" id="btn-material-back">← 重新设置目标</button></div>
+    <h2 class="view-title">把项目经历粘贴进来</h2>
+    <p class="view-sub">建议先粘贴 1-3 段最重要的项目经历。PDF / Word / 图片请先用 ChatGPT / Kimi 等转成文本。</p>
+    <textarea id="material-input" placeholder="项目原文..." rows="14"></textarea>
+    <div class="cta cta-left">
+      <button id="btn-material-start" class="primary">开始面试</button>
+      <span id="material-hint" class="hint-inline">Coach 会先读完做训练规划（约 5–10 秒）</span>
+    </div>
+  </section>
+
+  <!-- INTERVIEW -->
+  <section id="view-interview" class="view hidden">
+    <div class="interview-banner">
+      <div>
+        <span class="banner-label">当前阶段</span>
+        <span id="interview-stage" class="banner-value">…</span>
+      </div>
+      <div>
+        <span class="banner-label">重点</span>
+        <span id="interview-focus" class="banner-value">…</span>
+      </div>
+    </div>
+
+    <div class="question-card">
+      <div class="question-tag">面试官</div>
+      <div id="interview-question" class="question-text"></div>
+    </div>
+
+    <div class="composer">
+      <textarea id="interview-input" placeholder="你的回答..." rows="6"></textarea>
+      <button id="btn-interview-submit" class="primary">提交回答</button>
+    </div>
+
+    <div id="interview-feedback" class="feedback hidden"></div>
+
+    <button id="btn-cheat-toggle" class="cheat-toggle hidden">▶ 偷看面试官脑回路（作弊模式）</button>
+    <div id="cheat-panel" class="cheat-panel hidden"></div>
+
+    <button id="btn-finish" class="primary big hidden">结束面试 → 看报告</button>
+
+    <div id="interview-transcript" class="transcript"></div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="view-report" class="view hidden">
+    <h2 class="view-title">训练报告</h2>
+    <div id="report-content"></div>
+    <div class="cta">
+      <button id="btn-replay" class="primary">一键重练（薄弱项）</button>
+      <button id="btn-home" class="secondary">回到首页</button>
+    </div>
+  </section>
+
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
