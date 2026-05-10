@@ -336,12 +336,14 @@ function renderInterviewView() {
   $("#interview-question").textContent = state.current_question || "";
   $("#interview-input").value = "";
   hide("#interview-feedback");
-  hide("#cheat-panel");
   if (state.current_os) {
     show("#btn-cheat-toggle");
     renderCheatPanel(state.current_os);
+    show("#cheat-panel");
+    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
   } else {
     hide("#btn-cheat-toggle");
+    hide("#cheat-panel");
   }
   // ensure submit button visible / finish hidden at the start of each turn
   show("#btn-interview-submit");
@@ -404,8 +406,9 @@ async function submitAnswer() {
       $("#interview-question").textContent = state.current_question || "";
       $("#interview-input").value = "";
       renderCheatPanel(state.current_os);
-      hide("#cheat-panel");
+      show("#cheat-panel");
       show("#btn-cheat-toggle");
+      $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
     }
     renderTranscript();
     submit.disabled = false;
@@ -611,7 +614,42 @@ function renderReport(r) {
   `;
 }
 
-// ----- replay (一键重练) -----
+// ----- post-interview controls (exit / regen / replay) -----
+
+$("#btn-interview-exit").addEventListener("click", () => {
+  if (state.turns.length > 0 && !confirm("退出将丢失本场面试进度，确认退出？")) return;
+  state.session_id = null;
+  state.turns = [];
+  state.current_state = null;
+  state.current_question = null;
+  state.current_os = null;
+  state.report = null;
+  switchView("home");
+});
+
+$("#btn-regen-report").addEventListener("click", async () => {
+  const btn = $("#btn-regen-report");
+  if (!state.session_id) {
+    btn.textContent = "session 失效，请回到首页重新开始";
+    setTimeout(() => { btn.textContent = "重新生成报告"; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Coach 正在重写报告...";
+  try {
+    const report = await postJson("/api/coach/review", { session_id: state.session_id });
+    state.report = report;
+    renderReport(report);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    btn.textContent = "重新生成报告";
+    btn.disabled = false;
+  } catch (e) {
+    console.error("regen report failed:", e);
+    btn.textContent = "重新生成失败，稍后再试";
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = "重新生成报告"; }, 3000);
+  }
+});
 
 $("#btn-replay").addEventListener("click", () => {
   // Keep user_model + packet (so they don't redo onboarding); fresh session.
