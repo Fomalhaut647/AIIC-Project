@@ -268,7 +268,10 @@ textarea:focus {
 textarea::placeholder { color: var(--text-2); }
 
 .composer { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
-.composer button { align-self: flex-end; min-width: 120px; }
+/* Plan3.5 Bug 1: 限定为直接子按钮 (`>`)，避免 min-width: 120 cascade 到嵌套
+   `.textarea-with-mic > .mic-btn` 把 36×36 圆形撑成椭圆（覆盖 placeholder 的
+   "Cmd+Enter" 提示）。primary submit 按钮仍命中此规则。 */
+.composer > button { align-self: flex-end; min-width: 120px; }
 .hint-inline { color: var(--text-2); font-size: 13px; align-self: center; }
 
 /* ----- onboarding chat ----- */
@@ -287,10 +290,14 @@ textarea::placeholder { color: var(--text-2); }
   margin: 12px 0;
   padding: 10px 14px;
   border-radius: 10px;
+  /* Plan3.5 Bug 2: width: fit-content 让单行短气泡按文字宽度收紧；
+     max-width: 88% 仍封顶长气泡换行。inner text 永远 left-aligned。 */
+  width: fit-content;
   max-width: 88%;
   font-size: 14.5px;
   line-height: 1.6;
   white-space: pre-wrap;
+  text-align: left;
 }
 .chat .msg.coach {
   background: rgba(88,166,255,0.10);
@@ -298,12 +305,13 @@ textarea::placeholder { color: var(--text-2); }
   color: var(--text-0);
   margin-right: auto;
 }
+/* Plan3.5 Bug 2: 用户气泡贴右用 margin-left:auto，但 inner text 不能跟着右
+   对齐——`.chat .msg` 已设 text-align:left。删除原 `text-align:right`。 */
 .chat .msg.user {
   background: var(--bg-2);
   border: 1px solid var(--border);
   color: var(--text-0);
   margin-left: auto;
-  text-align: right;
 }
 .chat .msg .who {
   display: block;
@@ -1056,8 +1064,14 @@ textarea::placeholder { color: var(--text-2); }
   position: absolute;
   top: 8px;
   right: 8px;
+  /* Plan3.5 Bug 1: 防御性钉死正方形——即便有第三方/未来 selector 注入
+     min-width 也不再被撑椭圆。`flex: 0 0 36px` 让 mic-btn 嵌入未来任意
+     flex 容器都不会被压扁。 */
   width: 36px;
   height: 36px;
+  min-width: 0;
+  flex: 0 0 36px;
+  box-sizing: border-box;
   padding: 0;
   background: var(--bg-1);
   border: 1px solid var(--border);
