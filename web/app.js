@@ -989,8 +989,13 @@ function showFeedback(turn) {
     <div class="score">本轮 score: ${turn.score} / 100 · source: ${escapeHtml(turn.source)}</div>
   `;
   show("#interview-feedback");
-  // Plan3.5: 不再 scrollIntoView — sidebar position:sticky 已让反馈始终可见 +
-  // 主流 question card 不会被滚走，用户看 next question 不丢上下文。
+  // Plan3.5 review round 1 fix: 桌面 sidebar position:sticky 反馈始终可见,无需
+  // scrollIntoView。但 ≤720px mobile 时 sidebar 改 position:static + order:0
+  // 折叠到顶部, 用户在底部 textarea 提交后反馈渲到顶部不会自动滚——重现 ba037ea
+  // 修复的「demo wow moment 易被错过」问题。仅 mobile 复活 scrollIntoView。
+  if (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) {
+    div.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 function showError(text) {
