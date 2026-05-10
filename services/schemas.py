@@ -197,6 +197,9 @@ class InterviewSession(BaseModel):
     turns: list[InterviewTurn] = []
     consecutive_vague_count: int = 0
     used_question_ids: list[str] = []
+    # Plan2 P8 / Spec D §9.1: report attached after /api/coach/review;
+    # export.md gates 409 when this is None (implicit "reviewed" status).
+    evaluation_report: EvaluationReport | None = None
 
 
 # ----------------- Plan2 长期训练 -----------------

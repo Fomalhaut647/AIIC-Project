@@ -20,11 +20,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services import coach, interviewer
+from services.export import render_markdown
 # Plan2 P7: re-export coach.{onboard,plan,review} as module-level names so
 # tests can `patch("server.main.coach_onboard", fake)`. The bare-`coach`
 # import is retained for backward compatibility with code paths that still
@@ -381,6 +382,11 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
         session.user_model, session.packet, session.turns,
     )
 
+    # Plan2 P8: persist report on session JSON dump so export.md can find it
+    # later (Spec D §9.1 implicit "reviewed" status = report present).
+    session.evaluation_report = report
+    app.state.store._dump(session)
+
     # Plan2 P7: aggregate SessionMeta into user profile (Spec D §6.2 review hook).
     # Best-effort: if profile write fails, the user still gets the report
     # back (this is a side-channel; not a blocker for the primary response).
@@ -412,3 +418,50 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
         )
 
     return report
+
+
+# ============================================================
+# Plan2 P8: profile + markdown export — Spec D §6.1 / §9
+# ============================================================
+
+
+@app.get("/api/users/{user_id}/profile")
+async def get_user_profile(user_id: str):
+    """Spec D §6.1 — UserProfile aggregator. Missing user → empty profile
+    (200 + default UserProfile, NOT 404). The dashboard always lands on
+    something renderable even for first-time visitors."""
+    if app.state.store is None:
+        raise HTTPException(status_code=503, detail="store not initialised")
+    profile = app.state.store.load_user_profile(user_id)
+    return profile.model_dump(mode="json")
+
+
+@app.get("/api/sessions/{session_id}/export.md")
+async def export_session_markdown(session_id: str):
+    """Spec D §6.1 + §9 — 8-section markdown export.
+
+    - 404: session JSON dump not on disk
+    - 409: session exists but evaluation_report missing (call /coach/review first)
+    - 200: text/markdown attachment with full 8-section report
+    """
+    if app.state.store is None:
+        raise HTTPException(status_code=503, detail="store not initialised")
+    session_dict = app.state.store.load_session_dict(session_id)
+    if session_dict is None:
+        raise HTTPException(status_code=404, detail="session not found")
+    if not session_dict.get("evaluation_report"):
+        raise HTTPException(
+            status_code=409,
+            detail="session has not been reviewed yet; call /api/coach/review first",
+        )
+
+    md = render_markdown(session_dict)
+    score = session_dict["evaluation_report"].get("overall_score", 0)
+    short = session_id[:8]
+    date = datetime.now().strftime("%Y-%m-%d")
+    filename = f"projectprobe-{short}-{date}-score{score}.md"
+    return Response(
+        content=md,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

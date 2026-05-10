@@ -57,6 +57,18 @@ class SessionStore:
         path = self._dump_dir / f"{session.session_id}.json"
         path.write_text(session.model_dump_json(indent=2), encoding="utf-8")
 
+    def load_session_dict(self, session_id: str) -> dict | None:
+        """Load session JSON from disk as raw dict (for export rendering).
+
+        Returns None if not found; caller decides 404. We return a raw dict
+        rather than InterviewSession so render_markdown can navigate via
+        `.get()` without coupling to schema field names.
+        """
+        path = self._dump_dir / f"{session_id}.json"
+        if not path.exists():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+
     # ----------------- Plan2 长期训练 (Spec D §4.2) -----------------
 
     def _user_profile_path(self, user_id: str) -> Path:
