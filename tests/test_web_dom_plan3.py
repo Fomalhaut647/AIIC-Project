@@ -51,14 +51,28 @@ def test_styles_view_interview_three_col_grid():
 
 
 def test_styles_cheat_panel_not_fixed():
-    """Plan3.6: .cheat-panel 不再 position: fixed (改为 inline grid column + sticky)。"""
+    """Plan3.6: .cheat-panel 主规则 + 任意派生选择器 (.cheat-panel.foo / .cheat-panel:hover
+    等) 都不能用 position: fixed (改为 inline grid column + sticky)。
+
+    扫所有 selector 中含 ``.cheat-panel`` 的 rule body，逐个断言无 fixed —
+    防止未来通过 ``.cheat-panel.modal { position: fixed }`` 类派生绕过 contract。
+    """
     css = (WEB_DIR / "styles.css").read_text(encoding="utf-8")
-    # 找 .cheat-panel { ... } 主规则块 (非 .cheat-panel.hidden 等子规则)
-    m = re.search(r"\.cheat-panel\s*\{([^}]+)\}", css, re.DOTALL)
-    assert m, ".cheat-panel rule not found"
-    body = m.group(1)
-    assert "position: fixed" not in body and "position:fixed" not in body, \
-        f".cheat-panel still has position: fixed (Bug B 未修): {body!r}"
+    # 简化的 CSS rule 解析: <selector> { <body> } pairs (不处理嵌套;
+    # styles.css 是 flat CSS, 仅 @media 包嵌一层 rules 在内, 我们扫 @media 内规则也算)
+    rule_pat = re.compile(r"([^{}/]*?)\s*\{([^{}]*?)\}", re.DOTALL)
+    offenders = []
+    for sel, body in rule_pat.findall(css):
+        sel_clean = sel.strip().splitlines()[-1]  # 取最后一行 selector (跳过前面注释)
+        if ".cheat-panel" not in sel_clean:
+            continue
+        body_lc = body.lower().replace(" ", "")
+        if "position:fixed" in body_lc:
+            offenders.append((sel_clean.strip(), body.strip()))
+    assert not offenders, (
+        f".cheat-panel-related rule(s) still use position: fixed (Bug B 回归): "
+        f"{offenders!r}"
+    )
 
 
 def test_styles_cheat_panel_no_drawer_tab_class():

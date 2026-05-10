@@ -49,6 +49,13 @@
 html, body {
   margin: 0;
   padding: 0;
+  /* Plan3.6 review fix: guard against horizontal scroll from #view-interview
+     full-bleed (`width: 100vw` + negative margin) when the document has a
+     vertical scrollbar — `100vw` includes scrollbar width while `100%` does
+     not, otherwise causes ~17px horizontal overflow. `overflow-x: clip` is
+     the modern equivalent of `hidden` but doesn't establish a scroll
+     container, so `position: sticky` on .cheat-panel keeps working. */
+  overflow-x: clip;
   background: var(--bg-0);
   color: var(--text-1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",

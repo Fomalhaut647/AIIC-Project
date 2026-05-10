@@ -417,10 +417,16 @@ async function startReplay(parentSessionId, focusSlot) {
     // Plan3.6: panel 现在是常驻第 3 grid 列（不再 overlay），默认展开
     show("#cheat-panel");
     document.querySelector(".interview-layout")?.classList.remove("cheat-collapsed");
+    // Plan3.6 review fix: 同步 a11y attrs (默认 open 时屏读应可读 panel 内容)
+    $("#cheat-panel").setAttribute("aria-hidden", "false");
+    $("#btn-cheat-toggle").setAttribute("aria-pressed", "true");
+    $("#btn-cheat-toggle").textContent = "🧠 收起内心 OS";
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
     document.querySelector(".interview-layout")?.classList.add("cheat-collapsed");
+    $("#cheat-panel").setAttribute("aria-hidden", "true");
+    $("#btn-cheat-toggle").setAttribute("aria-pressed", "false");
   }
   $("#interview-transcript").innerHTML = "";
   // Plan3 G3: replay 模式同样自动朗读首问
@@ -856,10 +862,16 @@ function renderInterviewView() {
     // Plan3.6: panel 是常驻第 3 grid 列（不 overlay textarea），默认展开
     show("#cheat-panel");
     document.querySelector(".interview-layout")?.classList.remove("cheat-collapsed");
+    // Plan3.6 review fix: 同步 a11y attrs (默认 open 时屏读应可读 panel 内容)
+    $("#cheat-panel").setAttribute("aria-hidden", "false");
+    $("#btn-cheat-toggle").setAttribute("aria-pressed", "true");
+    $("#btn-cheat-toggle").textContent = "🧠 收起内心 OS";
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
     document.querySelector(".interview-layout")?.classList.add("cheat-collapsed");
+    $("#cheat-panel").setAttribute("aria-hidden", "true");
+    $("#btn-cheat-toggle").setAttribute("aria-pressed", "false");
   }
   // ensure submit button visible / finish hidden at the start of each turn
   show("#btn-interview-submit");
@@ -940,8 +952,20 @@ async function submitAnswer() {
       $("#interview-question").textContent = state.current_question || "";
       $("#interview-input").value = "";
       renderStageOutline();  // Plan3.5 Imp 1
-      renderCheatPanel(state.current_os);  // 重填 drawer body 但维持当前开/合状态
-      show("#btn-cheat-toggle");
+      // Plan3.6 review fix: 中途某 turn 若无 OS data, 不留 stale 内容 + 不让 toggle
+      // 仍 visible 但点了 panel 空。镜像 renderInterviewView 的 if/else 分支。
+      // 用户主动 collapse 偏好 (panel.classList contains hidden) 通过 renderCheatPanel
+      // 内部的 wasHidden 保留 — 只在 OS 存在时才 render。
+      if (state.current_os) {
+        renderCheatPanel(state.current_os);  // 重填 panel body 但维持当前开/合状态
+        show("#btn-cheat-toggle");
+      } else {
+        hide("#btn-cheat-toggle");
+        hide("#cheat-panel");
+        document.querySelector(".interview-layout")?.classList.add("cheat-collapsed");
+        $("#cheat-panel").setAttribute("aria-hidden", "true");
+        $("#btn-cheat-toggle").setAttribute("aria-pressed", "false");
+      }
       // Plan3 G3: 自动朗读 next-turn 的新问题
       _maybeSpeakCurrentQuestion();
     }
@@ -1044,6 +1068,11 @@ document.getElementById("cheat-panel")?.addEventListener("click", (e) => {
 // Esc 关闭 panel (a11y; 与 replay-mini-modal Esc 不互踩——分别 match 自己)
 // 命中后 return 不再 fall-through; 防御性: 万一两 modal 同开 (理论 view 互斥不该发生)
 // 也只关一个,用户再按 Esc 关下一个,符合栈式 modal 行为预期。
+// Plan3.6 决策: Plan3.5 时代 panel 是 modal-style drawer (role="dialog"/aria-modal)，
+// Esc 关闭是 modal a11y 标配。Plan3.6 改成 role="complementary" 常驻列后,
+// Esc 严格说不再"必需",但保留是因为 (1) 键盘用户可快速 collapse 拿主区更多宽度
+// (2) sidebar toggle 仍可用,Esc 是冗余但低成本的便捷路径。打字时按 Esc 收起
+// panel 是已知小副作用,但用户 IME 取消通常在 input field 内被 IME 拦截。
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const panel = document.getElementById("cheat-panel");
@@ -1072,7 +1101,7 @@ function renderCheatPanel(os) {
   panel.className = "cheat-panel " + riskClass + (wasHidden ? " hidden" : "");
   // Plan3.5 Imp 4: 抽屉里加 X 关闭按钮
   panel.innerHTML = `
-    <button class="cheat-drawer-close" type="button" aria-label="关闭抽屉" title="关闭 (Esc)">×</button>
+    <button class="cheat-drawer-close" type="button" aria-label="关闭面试官内心 OS" title="关闭 (Esc)">×</button>
     <h3>🧠 面试官内心 OS <span class="risk-badge">风险: ${escapeHtml(os.risk_level || "中")}</span></h3>
     <p><b>真正担心：</b>${escapeHtml(os.hidden_concern)}</p>
     <p><b>为什么追问：</b>${escapeHtml(os.why_this_question)}</p>
