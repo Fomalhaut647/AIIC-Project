@@ -604,3 +604,197 @@ textarea::placeholder { color: var(--text-2); }
   .cta { flex-direction: column; }
   .cta button { width: 100%; }
 }
+
+/* ============================================================
+   Plan2 P10: 个人主页 dashboard (view-profile)
+   ============================================================ */
+
+.nav-profile {
+  position: fixed;
+  top: 16px;
+  right: 64px;             /* 留位给 theme-toggle (right: 16px width 40 = 56) */
+  z-index: 100;
+  padding: 6px 14px;
+  border-radius: 18px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.nav-profile:hover {
+  background: var(--bg-2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.nav-profile .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--bad);
+  border-radius: 50%;
+}
+.nav-profile .dot.hidden { display: none; }
+
+.profile-header {
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 24px;
+}
+.profile-userid {
+  color: var(--text-2);
+  font-size: 0.9em;
+  margin: 4px 0 0;
+}
+.profile-userid-hint { margin-left: 8px; opacity: 0.7; }
+
+.profile-empty-msg {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-2);
+  font-size: 1.05em;
+}
+
+.profile-section-title {
+  margin: 32px 0 12px;
+  font-size: 1.05em;
+  color: var(--text-1);
+}
+
+.hero-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+}
+.stat-card {
+  flex: 1;
+  min-width: 140px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-1);
+  box-shadow: var(--shadow);
+}
+.stat-label {
+  font-size: 0.85em;
+  color: var(--text-2);
+}
+.stat-value {
+  font-size: 1.6em;
+  font-weight: 600;
+  margin-top: 4px;
+  color: var(--text-0);
+}
+
+.weakness-bars {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.weakness-bars li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+.weakness-bars .label {
+  min-width: 110px;
+  color: var(--text-1);
+  font-size: 0.95em;
+}
+.weakness-bars .bar {
+  height: 18px;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 250ms;
+  min-width: 4px;
+}
+.weakness-bars .count {
+  color: var(--text-2);
+  font-size: 0.9em;
+  margin-left: auto;
+}
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.timeline li {
+  padding: 12px 14px;
+  margin: 8px 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-1);
+}
+.timeline li.replay-row {
+  margin-left: 24px;
+  border-left: 3px solid var(--accent);
+  opacity: 0.92;
+}
+.timeline .timeline-meta {
+  color: var(--text-2);
+  font-size: 0.85em;
+}
+.timeline .timeline-title {
+  color: var(--text-0);
+  font-weight: 600;
+  margin: 4px 0;
+}
+.timeline .timeline-weak {
+  color: var(--text-1);
+  font-size: 0.9em;
+}
+.timeline .actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.timeline .actions button,
+.timeline .actions a {
+  font-size: 0.85em;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.timeline .actions button:hover,
+.timeline .actions a:hover {
+  background: var(--bg-2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.projects {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.projects li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-1);
+}
+.projects li:last-child { border-bottom: none; }
+.projects .proj-count {
+  color: var(--text-2);
+  font-size: 0.9em;
+  margin-left: 6px;
+}
+
+@media (max-width: 600px) {
+  .nav-profile { right: 56px; padding: 4px 10px; font-size: 12px; }
+  .hero-stats { gap: 8px; }
+  .stat-card { min-width: 100px; padding: 10px 12px; }
+  .timeline li.replay-row { margin-left: 12px; }
+}

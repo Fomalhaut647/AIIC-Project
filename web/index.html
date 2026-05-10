@@ -22,6 +22,9 @@
 </head>
 <body>
 <button id="btn-theme-toggle" class="theme-toggle" aria-label="切换主题" title="切换亮/暗主题">☾</button>
+<button id="nav-profile" class="nav-profile" aria-label="我的训练" title="我的训练记录">
+  我的训练 <span id="nav-profile-dot" class="dot hidden"></span>
+</button>
 <div id="app">
 
   <!-- HOME -->
@@ -139,6 +142,45 @@
       <button id="btn-replay" class="primary">再来一场</button>
       <button id="btn-home" class="secondary">回到首页</button>
     </div>
+  </section>
+
+  <!-- PROFILE (Plan2 P10) -->
+  <section id="view-profile" class="view hidden">
+    <div class="topbar"><button class="link" id="btn-profile-back">← 返回首页</button></div>
+    <header class="profile-header">
+      <h2 class="view-title">我的训练记录</h2>
+      <p class="profile-userid">本机 ID：<span id="profile-userid-display">—</span><span class="profile-userid-hint">（无登录；清浏览器缓存即重置）</span></p>
+    </header>
+
+    <section id="profile-empty" class="hidden">
+      <p class="profile-empty-msg">还没训练过。<a href="#" id="profile-empty-link">去首页开始第一次训练 →</a></p>
+    </section>
+
+    <section id="profile-content" class="hidden">
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-label">总 session</div>
+          <div class="stat-value" id="stat-total">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">平均分</div>
+          <div class="stat-value" id="stat-avg">— / 100</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">训练天数</div>
+          <div class="stat-value" id="stat-days">0</div>
+        </div>
+      </div>
+
+      <h3 class="profile-section-title">最常薄弱的槽位</h3>
+      <ul id="profile-weakness-bars" class="weakness-bars"></ul>
+
+      <h3 class="profile-section-title">训练时间线</h3>
+      <ul id="profile-timeline" class="timeline"></ul>
+
+      <h3 class="profile-section-title">训练过的项目</h3>
+      <ul id="profile-projects" class="projects"></ul>
+    </section>
   </section>
 
 </div>
