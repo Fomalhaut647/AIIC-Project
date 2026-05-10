@@ -75,11 +75,24 @@ async function postJson(url, body) {
     let detail = await resp.text();
     try {
       const parsed = JSON.parse(detail);
-      detail = typeof parsed.detail === "string"
-        ? parsed.detail
-        : JSON.stringify(parsed.detail || parsed);
+      // FastAPI HTTPException.detail can be a string OR an object. Spec C
+      // §2.6 returns {error: "session_expired", message: "请重新开始训练"}.
+      // Prefer the human-readable .message field; fall back through reasonable
+      // shapes; only stringify whole detail as last resort.
+      if (typeof parsed.detail === "string") {
+        detail = parsed.detail;
+      } else if (parsed.detail && typeof parsed.detail.message === "string") {
+        detail = parsed.detail.message;
+      } else if (parsed.detail) {
+        detail = JSON.stringify(parsed.detail);
+      } else {
+        detail = JSON.stringify(parsed);
+      }
     } catch (_) { /* keep raw text */ }
-    throw new Error(`${resp.status}: ${detail}`);
+    const err = new Error(`${resp.status}: ${detail}`);
+    err.status = resp.status;
+    err.detail = detail;
+    throw err;
   }
   return resp.json();
 }
