@@ -62,3 +62,37 @@ async def plan(user_model: UserModel, project_summary: str) -> CoachPlanResult:
         messages, response_schema=CoachPlanResult,
         temperature=0.5, fallback=_PLAN_FALLBACK,
     )
+
+
+async def review(
+    user_model: UserModel,
+    packet: InterviewPacket,
+    turns: list[InterviewTurn],
+) -> EvaluationReport:
+    turns_json = "[" + ",".join(t.model_dump_json() for t in turns) + "]"
+    messages = [
+        {"role": "system", "content": COACH_REVIEW_SYSTEM.format(
+            user_model_json=user_model.model_dump_json(),
+            packet_json=packet.model_dump_json(),
+            turns_json=turns_json,
+        )},
+        {"role": "user", "content": "请生成 EvaluationReport JSON。"},
+    ]
+    # review 是 demo 关键路径，给一个最小 fallback 避免崩溃
+    from services.schemas import (
+        Evidence, ResumeRewrite, HumorCard,
+    )
+    fallback = EvaluationReport(
+        overall_score=0,
+        summary="系统繁忙，请稍后重试或重新开始训练。",
+        strengths=[], weaknesses=["LLM 暂时无响应"],
+        evidence=[Evidence(quote="（无）", problem="系统降级", suggestion="重试")],
+        dangerous_questions=["（无）", "（无）"],
+        resume_rewrite=ResumeRewrite(original="", rewritten="", missing_evidence=[]),
+        next_training_plan=_PLAN_FALLBACK.training_plan,
+        humor_card=HumorCard(title="系统也会打盹", content="再试一次。"),
+    )
+    return await call_deepseek(
+        messages, response_schema=EvaluationReport,
+        temperature=0.7, max_tokens=4000, fallback=fallback,
+    )
