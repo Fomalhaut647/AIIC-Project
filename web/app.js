@@ -1335,8 +1335,15 @@ class VoiceInput {
     };
 
     rec.onerror = (ev) => {
+      // 终止性错误（权限拒/麦克风不可用/服务不允许）必须先置 isRecording=false，
+      // 否则 onend auto-restart 分支会无限尝试 start() 制造循环。
+      // no-speech / network 等可恢复错误让 onend cleanup 兜底（isRecording 维持
+      // 由 onend 决定）。
+      const fatal = ["not-allowed", "audio-capture", "service-not-allowed"];
+      if (fatal.includes(ev.error)) {
+        this.isRecording = false;
+      }
       this.onError(new Error(`语音识别错误: ${ev.error || "unknown"}`));
-      // no-speech / network 等错误后 onend 会触发, isRecording 复位由 onend 兜底
     };
 
     rec.onend = () => {
@@ -1411,7 +1418,12 @@ document.querySelectorAll(".mic-btn").forEach(btn => {
       });
     }
 
-    VOICE_INPUT = new VoiceInput({
+    // Capture newVI 在 closure 内，让 onStop 用 instance equality check
+    // 避免 swap race：用户从 textarea A 切到 B 时，旧 instance 的 onend 会
+    // 触发 onStop callback；如果 unconditional `VOICE_INPUT = null` 会把
+    // 新 live instance 也 nulls 掉。`if (VOICE_INPUT === newVI)` 保证只
+    // 释放自己。
+    const newVI = new VoiceInput({
       targetTextarea: ta,
       onStart: () => {
         btn.classList.add("mic-pulse");
@@ -1420,7 +1432,7 @@ document.querySelectorAll(".mic-btn").forEach(btn => {
       onStop: () => {
         btn.classList.remove("mic-pulse");
         btn.dataset.recording = "false";
-        VOICE_INPUT = null;  // 释放 stale 引用，避免 toggle off→on 后看到死实例
+        if (VOICE_INPUT === newVI) VOICE_INPUT = null;  // 仅释放自己，不踩新 instance
       },
       onError: (err) => {
         btn.classList.remove("mic-pulse");
@@ -1429,7 +1441,8 @@ document.querySelectorAll(".mic-btn").forEach(btn => {
         _plan3Toast("语音识别失败：" + (err.message || err), "error");
       },
     });
-    VOICE_INPUT.start();
+    VOICE_INPUT = newVI;
+    newVI.start();
   });
 });
 

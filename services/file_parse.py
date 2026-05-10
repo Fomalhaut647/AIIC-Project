@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+import zipfile
 from pathlib import Path
 
 import fitz  # PyMuPDF
 from docx import Document  # python-docx
+from docx.opc.exceptions import OpcError  # python-docx 解析错误基类
 
 
 async def parse_file(path: Path, file_type: str) -> tuple[str, list[str]]:
@@ -45,7 +47,18 @@ def _parse_pdf(path: Path) -> tuple[str, list[str]]:
 def _parse_docx(path: Path) -> tuple[str, list[str]]:
     """python-docx 抽段落 + 表格。"""
     warnings: list[str] = []
-    doc = Document(str(path))
+    # python-docx 解析损坏 .docx 抛两类异常（都继承 Exception 不继承 ValueError）：
+    #   1. PackageNotFoundError (OpcError 子类) — 文件不是 valid OPC zip 包
+    #      （非 zip 字节 / 文件被截断在 zip header 之前）
+    #   2. zipfile.BadZipFile — zip 结构 OK 但内容损坏（文件被中途截断）
+    # endpoint 层 catch (ValueError, RuntimeError) narrow except 不覆盖以上
+    # 任一 → 逃成 fastapi 500 + raw 文件 orphan leak quota。在 service 层
+    # wrap 成 ValueError 让 endpoint 走 422 + unlink raw 路径，与 _parse_pdf
+    # 的 "encrypted" ValueError 模式对齐。
+    try:
+        doc = Document(str(path))
+    except (OpcError, zipfile.BadZipFile) as e:
+        raise ValueError("docx file is corrupted or not a valid .docx") from e
     parts: list[str] = []
     for p in doc.paragraphs:
         if p.text.strip():

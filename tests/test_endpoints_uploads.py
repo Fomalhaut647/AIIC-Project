@@ -172,3 +172,27 @@ def test_upload_rollback_on_parse_failure(client, tmp_path, monkeypatch):
     if user_dir.exists():
         # 目录可能被 mkdir 创建但应无文件残留
         assert list(user_dir.glob("*")) == []
+
+
+def test_upload_corrupt_docx_returns_422_and_unlinks(client, tmp_path):
+    """损坏的 .docx (非 zip 字节) → service 层 wrap BadZipFile→ValueError →
+    endpoint 422 + raw_path unlink。验 PR review Issue 2 修复 (BadZipFile
+    继承 Exception 不继承 ValueError，narrow except 必须显式覆盖否则 raw
+    leak quota + 用户看到 500 而非 spec 要求的 422)。"""
+    # 不是 valid zip 的 bytes —— python-docx 调 zipfile 解时抛 BadZipFile
+    fake_docx = b"\x00\x00\x00\x00 not a real zip"
+    r = client.post(
+        "/api/uploads",
+        files={"file": (
+            "corrupt.docx",
+            fake_docx,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )},
+        data={"user_id": "u-corrupt"},
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "parse failed"
+
+    user_dir = tmp_path / "uploads" / "u-corrupt"
+    if user_dir.exists():
+        assert list(user_dir.glob("*")) == []
