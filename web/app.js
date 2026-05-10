@@ -775,8 +775,10 @@ async function startInterviewFromMaterial() {
     state.current_os = start.interviewer_os;
     state.turns = [];
 
-    renderInterviewView();
+    // 顺序: switchView 先 (pause 任何残留 TTS audio) → renderInterviewView (可能启动新 TTS)
+    // 与项目其他 5 处 callsite 一致；让 TTS hook 顺序确定 (pause → maybe-start) 不靠 race
     switchView("interview");
+    renderInterviewView();
   } catch (e) {
     console.error("material → start chain failed:", e);
     setMaterialHint(
