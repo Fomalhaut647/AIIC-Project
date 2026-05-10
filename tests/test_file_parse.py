@@ -57,6 +57,7 @@ async def test_parse_pdf_with_image(tmp_path: Path):
     doc.close()
 
     text, warnings = await parse_file(pdf_path, "pdf")
+    assert "page text" in text  # 图片处理不应破坏文本提取
     assert any("image" in w.lower() for w in warnings)
 
 
@@ -92,7 +93,8 @@ async def test_parse_docx(tmp_path: Path):
     text, warnings = await parse_file(docx_path, "docx")
     assert "项目动机" in text
     assert "baseline 选择" in text
-    assert "指标" in text or "准确率" in text  # 表格被渲染为行
+    assert "指标" in text  # 表格 row 0 被渲染
+    assert "准确率" in text  # 表格 row 1 被渲染
     assert any("table" in w.lower() for w in warnings)
 
 
