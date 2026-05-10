@@ -51,25 +51,35 @@ def _git_short_hash() -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Set healthz fields FIRST so the deploy probe stays green even if a
+    # downstream service constructor throws (e.g. SessionStore() does
+    # mkdir(parents=True, exist_ok=True) at services/store.py:18 which can
+    # raise PermissionError/OSError under restricted FS — nginx-spawned
+    # uvicorn, read-only mounts, etc).  The whole point of the lazy-import
+    # pattern is "healthz must respond" — must not be defeated by a
+    # narrowly-scoped except clause.
+    app.state.commit_hash = _git_short_hash()
+    cn_tz = timezone(timedelta(hours=8))
+    app.state.deploy_time = datetime.now(cn_tz).isoformat(timespec="seconds")
+
     # Lazy imports — Plan1A (services.store) may not be merged yet when
-    # Plan1C lands first. healthz / static serving must work without them.
+    # Plan1C lands first. Broad except so init failures (mkdir denied,
+    # bank file missing, etc) degrade to a 503 on dependent endpoints
+    # rather than a 500 on healthz.
     try:
         from services.store import SessionStore  # noqa: WPS433
 
         app.state.store = SessionStore()
-    except ImportError:
+    except Exception:
         app.state.store = None
 
     try:
         from services.question_bank import QuestionBank  # noqa: WPS433
 
         app.state.bank = QuestionBank()
-    except ImportError:
+    except Exception:
         app.state.bank = None
 
-    app.state.commit_hash = _git_short_hash()
-    cn_tz = timezone(timedelta(hours=8))
-    app.state.deploy_time = datetime.now(cn_tz).isoformat(timespec="seconds")
     yield
     # no cleanup needed (in-memory store)
 
