@@ -12,6 +12,7 @@ Lifespan responsibilities:
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import uuid
 from contextlib import asynccontextmanager
@@ -24,6 +25,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services import coach, interviewer
+# Plan2 P7: re-export coach.{onboard,plan,review} as module-level names so
+# tests can `patch("server.main.coach_onboard", fake)`. The bare-`coach`
+# import is retained for backward compatibility with code paths that still
+# reference `coach.X` directly.
+from services.coach import (
+    onboard as coach_onboard,
+    plan as coach_plan,
+    review as coach_review,
+)
 from services.llm import call_deepseek
 from services.prompts import PROFILE_PARSE_SYSTEM
 from services.schemas import (
@@ -36,6 +46,7 @@ from services.schemas import (
     OnboardResult,
     QuestionSource,
     RiskLevel,
+    SessionMeta,
     UserModel,
 )
 from services.store import SessionNotFound
@@ -73,7 +84,12 @@ async def lifespan(app: FastAPI):
     try:
         from services.store import SessionStore  # noqa: WPS433
 
-        app.state.store = SessionStore()
+        # Plan2 P7: read DATA_DIR fresh each lifespan startup so tests can
+        # `monkeypatch.setenv("DATA_DIR", str(tmp_path))` and pick up an
+        # isolated data root via `with TestClient(app) as c:`. Caching this
+        # at import time would defeat the monkeypatch.
+        data_dir = Path(os.environ.get("DATA_DIR", "data"))
+        app.state.store = SessionStore(data_dir=data_dir)
     except Exception:
         app.state.store = None
 
@@ -125,17 +141,19 @@ async def healthz():
 class _OnboardReq(BaseModel):
     user_message: str
     history: list[dict] = []
+    user_id: str = "anonymous"  # Plan2 P7: 长期训练用户标识 (Spec D §6.2)
 
 
 @app.post("/api/coach/onboard", response_model=OnboardResult)
 async def api_coach_onboard(body: _OnboardReq) -> OnboardResult:
     if not body.user_message.strip():
         raise HTTPException(status_code=400, detail="user_message is empty")
-    return await coach.onboard(body.user_message, body.history)
+    return await coach_onboard(body.user_message, body.history)
 
 
 class _ParseReq(BaseModel):
     raw_project_text: str
+    user_id: str = "anonymous"  # Plan2 P7
 
 
 class _ParseResp(BaseModel):
@@ -175,11 +193,12 @@ async def api_profile_parse(body: _ParseReq) -> _ParseResp:
 class _PlanReq(BaseModel):
     user_model: UserModel
     project_summary: str
+    user_id: str = "anonymous"  # Plan2 P7
 
 
 @app.post("/api/coach/plan", response_model=CoachPlanResult)
 async def api_coach_plan(body: _PlanReq) -> CoachPlanResult:
-    return await coach.plan(body.user_model, body.project_summary)
+    return await coach_plan(body.user_model, body.project_summary)
 
 
 # ============================================================
@@ -190,6 +209,7 @@ async def api_coach_plan(body: _PlanReq) -> CoachPlanResult:
 class _StartReq(BaseModel):
     interview_packet: InterviewPacket
     user_model: UserModel
+    user_id: str = "anonymous"  # Plan2 P7
 
 
 class _StartResp(BaseModel):
@@ -295,6 +315,7 @@ async def api_interviewer_start(
 class _NextReq(BaseModel):
     session_id: str
     answer: str
+    user_id: str = "anonymous"  # Plan2 P7
 
 
 class _NextResp(BaseModel):
@@ -331,6 +352,7 @@ async def api_interviewer_next(body: _NextReq) -> _NextResp:
 
 class _ReviewReq(BaseModel):
     session_id: str
+    user_id: str = "anonymous"  # Plan2 P7
 
 
 @app.post("/api/coach/review", response_model=EvaluationReport)
@@ -355,6 +377,29 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
                 f"turns={len(session.turns)}); need state=done or turns>=6"
             ),
         )
-    return await coach.review(
+    report = await coach_review(
         session.user_model, session.packet, session.turns,
     )
+
+    # Plan2 P7: aggregate SessionMeta into user profile (Spec D §6.2 review hook).
+    # Best-effort: if profile write fails, the user still gets the report
+    # back (this is a side-channel; not a blocker for the primary response).
+    try:
+        meta = SessionMeta(
+            session_id=body.session_id,
+            # session creation timestamp not tracked in v2 InterviewSession;
+            # use now() as a close approximation (review fires at end of session).
+            created_at=datetime.now(),
+            target=session.packet.target,
+            project_summary_short=session.packet.project_summary[:80],
+            overall_score=report.overall_score,
+            weakness_tags=report.weaknesses,
+            parent_session_id=session.packet.parent_session_id,
+            is_replay=session.packet.replay_mode,
+        )
+        await app.state.store.update_user_profile(body.user_id, meta)
+    except Exception:
+        # Profile aggregation is non-critical; surface report regardless.
+        pass
+
+    return report
