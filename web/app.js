@@ -1338,6 +1338,17 @@ class VoiceInput {
     };
 
     rec.onend = () => {
+      // continuous=true 模式静音超时也会 onend; 区分 "用户主动 stop"（stop()
+      // 把 isRecording 先置 false）vs "静音 timeout"（isRecording 仍 true，
+      // 触发自动重启延续录音）。重启失败则落到 cleanup 路径。
+      if (this.isRecording && this._recognition) {
+        try {
+          this._recognition.start();
+          return;
+        } catch (_) {
+          /* 重启失败（权限撤销 / 浏览器抑制）→ 落 cleanup */
+        }
+      }
       this.isRecording = false;
       this._recognition = null;
       this.onStop();
@@ -1356,8 +1367,10 @@ class VoiceInput {
 
   stop() {
     if (!this.isRecording || !this._recognition) return;
+    // 先置 false 让 onend 区分用户主动 stop（不重启）vs 静音 timeout（重启）
+    this.isRecording = false;
     try { this._recognition.stop(); } catch (_) {}
-    // isRecording / _recognition 由 onend 复位
+    // _recognition 由 onend cleanup 路径置 null
   }
 }
 
@@ -1405,6 +1418,7 @@ document.querySelectorAll(".mic-btn").forEach(btn => {
       onStop: () => {
         btn.classList.remove("mic-pulse");
         btn.dataset.recording = "false";
+        VOICE_INPUT = null;  // 释放 stale 引用，避免 toggle off→on 后看到死实例
       },
       onError: (err) => {
         btn.classList.remove("mic-pulse");
@@ -1436,7 +1450,7 @@ async function fetchAndPlayTTS(text) {
     const resp = await fetch("/api/tts/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, user_id: USER_ID }),
     });
     if (!resp.ok) {
       console.warn("TTS endpoint failed:", resp.status);
