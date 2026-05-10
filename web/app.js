@@ -97,6 +97,11 @@ $("#btn-theme-toggle").addEventListener("click", () => {
 syncThemeIcon();
 
 function switchView(name) {
+  // Plan3 G3 hook: 切走任何视图都停掉正在播的 TTS audio（避免下一视图还能听到上一问）
+  if (typeof CURRENT_TTS_AUDIO !== "undefined" && CURRENT_TTS_AUDIO) {
+    try { CURRENT_TTS_AUDIO.pause(); } catch (_) {}
+    CURRENT_TTS_AUDIO = null;
+  }
   // Plan2 P10/P11: profile is the 6th view
   ["home", "onboarding", "material", "interview", "report", "profile"].forEach(v => {
     document.querySelector("#view-" + v).classList.add("hidden");
@@ -415,6 +420,8 @@ async function startReplay(parentSessionId, focusSlot) {
     hide("#cheat-panel");
   }
   $("#interview-transcript").innerHTML = "";
+  // Plan3 G3: replay 模式同样自动朗读首问
+  _maybeSpeakCurrentQuestion();
 }
 
 function _showReplayBanner(text) {
@@ -826,6 +833,8 @@ function renderInterviewView() {
   $("#btn-interview-submit").disabled = false;
   $("#btn-interview-submit").textContent = "提交回答";
   renderTranscript();
+  // Plan3 G3: 若 speaker toggle 已开, 自动朗读当前问题
+  _maybeSpeakCurrentQuestion();
 }
 
 // ============================================================
@@ -899,6 +908,8 @@ async function submitAnswer() {
       show("#cheat-panel");
       show("#btn-cheat-toggle");
       $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
+      // Plan3 G3: 自动朗读 next-turn 的新问题
+      _maybeSpeakCurrentQuestion();
     }
     renderTranscript();
     submit.disabled = false;
@@ -1154,4 +1165,412 @@ $("#btn-replay").addEventListener("click", () => {
     $("#material-input").value = DEMO_PROJECT_TEXT;
   }
   switchView("material");
+});
+
+// ============================================================
+// PLAN3 MULTIMODAL — G2 STT (mic) + G3 TTS (speaker) + G4 toggles + upload
+// Spec E §7.4 (upload) / §8 (STT VoiceInput) / §9.3 (TTS frontend) / §10 (toggles).
+// 5 硬约束: 不动既有 DOM id / 不动 API 数据流 / vanilla JS / CSS 变量主题 / 0 npm dep.
+// ============================================================
+
+// ---------- Plan3 toggle state (localStorage 持久化) ----------
+
+state.mic_on = (() => {
+  try { return localStorage.getItem("micOn") === "true"; }
+  catch (_) { return false; }
+})();
+state.speaker_on = (() => {
+  try { return localStorage.getItem("speakerOn") === "true"; }
+  catch (_) { return false; }
+})();
+
+// 当前激活的 VoiceInput instance (mic-btn click 时单例切换)
+let VOICE_INPUT = null;
+// 当前正在播的 TTS Audio (用于 speaker off / switchView 时 pause)
+let CURRENT_TTS_AUDIO = null;
+
+// ---------- Plan3 toast (轻量替代 alert; 与 nav-toggle 风格对齐) ----------
+
+function _plan3Toast(msg, kind /* 'info'|'warn'|'error' */) {
+  let el = document.getElementById("plan3-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "plan3-toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.style.cssText = [
+      "position:fixed", "top:60px", "left:50%", "transform:translateX(-50%)",
+      "background:var(--bg-2,#1f1f22)", "color:var(--text-1,#fff)",
+      "padding:10px 16px", "border-radius:8px", "z-index:9999",
+      "box-shadow:0 4px 12px rgba(0,0,0,0.3)", "font-size:14px",
+      "max-width:80vw", "transition:opacity 0.2s",
+    ].join(";");
+    document.body.appendChild(el);
+  }
+  el.style.borderLeft = "3px solid " + (
+    kind === "error" ? "var(--bad,#e57373)"
+    : kind === "warn" ? "var(--warn,#f0a35e)"
+    : "var(--accent,#7ab8ff)"
+  );
+  el.textContent = msg;
+  el.style.opacity = "1";
+  clearTimeout(_plan3Toast._timer);
+  _plan3Toast._timer = setTimeout(() => {
+    if (el) el.style.opacity = "0";
+  }, 3500);
+}
+
+// ---------- Plan3 G4: dual toggle (mic / speaker) ----------
+
+function updateMicToggleVisual() {
+  const btn = document.getElementById("toggle-mic");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", state.mic_on ? "true" : "false");
+  // 录音按钮 enable / disable 跟随 toggle (Q6 mic-btn 默认 disabled)
+  document.querySelectorAll(".mic-btn").forEach(b => {
+    b.disabled = !state.mic_on;
+  });
+}
+
+function updateSpeakerToggleVisual() {
+  const btn = document.getElementById("toggle-speaker");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", state.speaker_on ? "true" : "false");
+}
+
+document.getElementById("toggle-mic")?.addEventListener("click", () => {
+  state.mic_on = !state.mic_on;
+  try { localStorage.setItem("micOn", String(state.mic_on)); } catch (_) {}
+  updateMicToggleVisual();
+  // 关 mic 时立刻停掉正在录的 VoiceInput + 清掉 .mic-pulse 视觉
+  if (!state.mic_on && VOICE_INPUT && VOICE_INPUT.isRecording) {
+    try { VOICE_INPUT.stop(); } catch (_) {}
+    document.querySelectorAll(".mic-btn.mic-pulse").forEach(b => {
+      b.classList.remove("mic-pulse");
+      b.dataset.recording = "false";
+    });
+  }
+});
+
+document.getElementById("toggle-speaker")?.addEventListener("click", () => {
+  state.speaker_on = !state.speaker_on;
+  try { localStorage.setItem("speakerOn", String(state.speaker_on)); } catch (_) {}
+  updateSpeakerToggleVisual();
+  // 关 speaker 时立刻停掉正在播的 audio
+  if (!state.speaker_on && CURRENT_TTS_AUDIO) {
+    try { CURRENT_TTS_AUDIO.pause(); } catch (_) {}
+    CURRENT_TTS_AUDIO = null;
+  }
+});
+
+// 初始化 toggle 视觉 (基于 localStorage 恢复的 state)
+updateMicToggleVisual();
+updateSpeakerToggleVisual();
+
+// ---------- Plan3 G2 STT: VoiceInput class (Web Speech API) ----------
+
+/**
+ * 封装 webkitSpeechRecognition: zh-CN locale, continuous + interimResults.
+ * 一次只允许一个 instance 录音 (constructor 自动 stop 旧的)。
+ *
+ * 使用方式:
+ *   const v = new VoiceInput({ targetTextarea, onStart, onStop, onError });
+ *   v.start();   // 申请麦克风权限并开始录音
+ *   v.stop();    // 主动停 (用户再点 mic-btn 或关 mic toggle)
+ *
+ * partial 结果实时填到 textarea (替换尾部 interim 段);
+ * final 结果 commit 到 textarea + 累加。
+ */
+class VoiceInput {
+  constructor(opts) {
+    this.targetTextarea = opts.targetTextarea;
+    this.onStart = opts.onStart || (() => {});
+    this.onStop = opts.onStop || (() => {});
+    this.onError = opts.onError || (() => {});
+    this.isRecording = false;
+    this._recognition = null;
+    this._baseValue = "";   // 录音开始前 textarea 的初始内容 (后续追加)
+    this._finalChunk = "";  // 已 commit 的最终段累加
+  }
+
+  static isSupported() {
+    return typeof window !== "undefined" &&
+      ("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+  }
+
+  start() {
+    if (this.isRecording) return;
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Ctor) {
+      this.onError(new Error("浏览器不支持 Web Speech API (建议 Chrome/Edge)"));
+      return;
+    }
+    const rec = new Ctor();
+    rec.lang = "zh-CN";
+    rec.continuous = true;
+    rec.interimResults = true;
+
+    rec.onstart = () => {
+      this.isRecording = true;
+      this._baseValue = this.targetTextarea.value || "";
+      this._finalChunk = "";
+      this.onStart();
+    };
+
+    rec.onresult = (ev) => {
+      let interim = "";
+      // 从 resultIndex 起遍历: isFinal 的 commit 到 _finalChunk; 否则进 interim
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const r = ev.results[i];
+        const txt = r[0]?.transcript || "";
+        if (r.isFinal) this._finalChunk += txt;
+        else interim += txt;
+      }
+      // textarea = base + finalChunk + interim (interim 每次刷新被替换)
+      const sep = this._baseValue && !this._baseValue.endsWith("\n") ? " " : "";
+      this.targetTextarea.value =
+        this._baseValue + sep + this._finalChunk + interim;
+    };
+
+    rec.onerror = (ev) => {
+      this.onError(new Error(`语音识别错误: ${ev.error || "unknown"}`));
+      // no-speech / network 等错误后 onend 会触发, isRecording 复位由 onend 兜底
+    };
+
+    rec.onend = () => {
+      this.isRecording = false;
+      this._recognition = null;
+      this.onStop();
+    };
+
+    this._recognition = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      // start() 在权限拒绝 / 已在录时抛 InvalidStateError; 触发 onError
+      this.isRecording = false;
+      this._recognition = null;
+      this.onError(e);
+    }
+  }
+
+  stop() {
+    if (!this.isRecording || !this._recognition) return;
+    try { this._recognition.stop(); } catch (_) {}
+    // isRecording / _recognition 由 onend 复位
+  }
+}
+
+// ---------- mic-btn click handlers (3 个 textarea) ----------
+
+document.querySelectorAll(".mic-btn").forEach(btn => {
+  btn.dataset.recording = "false";
+  btn.addEventListener("click", () => {
+    if (!state.mic_on) {
+      _plan3Toast("请先在右上角打开 🎤 麦克风模式", "warn");
+      return;
+    }
+    if (!VoiceInput.isSupported()) {
+      _plan3Toast("当前浏览器不支持语音输入 (建议 Chrome / Edge)", "error");
+      return;
+    }
+    const targetId = btn.dataset.targetTextarea;
+    const ta = document.getElementById(targetId);
+    if (!ta) {
+      console.warn("mic-btn: target textarea not found", targetId);
+      return;
+    }
+
+    // 已在录: 停。未录: 先停掉别的 instance, 再开新。
+    if (btn.dataset.recording === "true" && VOICE_INPUT) {
+      VOICE_INPUT.stop();
+      return;
+    }
+
+    if (VOICE_INPUT && VOICE_INPUT.isRecording) {
+      VOICE_INPUT.stop();
+      // 清掉别的 mic-btn 的 active 视觉
+      document.querySelectorAll(".mic-btn.mic-pulse").forEach(b => {
+        b.classList.remove("mic-pulse");
+        b.dataset.recording = "false";
+      });
+    }
+
+    VOICE_INPUT = new VoiceInput({
+      targetTextarea: ta,
+      onStart: () => {
+        btn.classList.add("mic-pulse");
+        btn.dataset.recording = "true";
+      },
+      onStop: () => {
+        btn.classList.remove("mic-pulse");
+        btn.dataset.recording = "false";
+      },
+      onError: (err) => {
+        btn.classList.remove("mic-pulse");
+        btn.dataset.recording = "false";
+        console.error("VoiceInput error:", err);
+        _plan3Toast("语音识别失败：" + (err.message || err), "error");
+      },
+    });
+    VOICE_INPUT.start();
+  });
+});
+
+// ---------- Plan3 G3 TTS: fetchAndPlayTTS + auto-speak hook ----------
+
+/**
+ * POST /api/tts/synthesize → audio blob → HTMLAudioElement → play.
+ * 单实例: 新一次调用会 pause 上一次的 audio (避免叠播)。
+ * 失败 silent: TTS 是 enhancement, 不能让朗读失败 block 文本流程。
+ */
+async function fetchAndPlayTTS(text) {
+  if (!text || !text.trim()) return;
+  // 先停掉上一段
+  if (CURRENT_TTS_AUDIO) {
+    try { CURRENT_TTS_AUDIO.pause(); } catch (_) {}
+    CURRENT_TTS_AUDIO = null;
+  }
+  let blob;
+  try {
+    const resp = await fetch("/api/tts/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!resp.ok) {
+      console.warn("TTS endpoint failed:", resp.status);
+      return;
+    }
+    blob = await resp.blob();
+  } catch (e) {
+    console.warn("TTS fetch error:", e);
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  CURRENT_TTS_AUDIO = audio;
+  audio.addEventListener("ended", () => {
+    URL.revokeObjectURL(url);
+    if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+  });
+  audio.addEventListener("error", () => {
+    URL.revokeObjectURL(url);
+    if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+  });
+  try {
+    await audio.play();
+  } catch (e) {
+    // autoplay block (浏览器策略要求用户手势) — 静默
+    console.warn("TTS autoplay blocked:", e);
+    URL.revokeObjectURL(url);
+    if (CURRENT_TTS_AUDIO === audio) CURRENT_TTS_AUDIO = null;
+  }
+}
+
+// 渲染当前问题时调用 (renderInterviewView / submitAnswer next-turn / startReplay)
+function _maybeSpeakCurrentQuestion() {
+  if (!state.speaker_on) return;
+  if (!state.current_question) return;
+  fetchAndPlayTTS(state.current_question);
+}
+
+// ---------- Plan3 G1 upload: XHR + progress + parsed_text 注入 ----------
+
+document.getElementById("upload-btn")?.addEventListener("click", () => {
+  const inp = document.getElementById("upload-input");
+  if (inp) inp.click();
+});
+
+document.getElementById("upload-input")?.addEventListener("change", (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    _plan3Toast("文件过大（限 10MB）", "warn");
+    ev.target.value = "";
+    return;
+  }
+
+  const xhr = new XMLHttpRequest();
+  const bar = document.getElementById("upload-progress");
+  const warnDiv = document.getElementById("upload-warnings");
+  const btn = document.getElementById("upload-btn");
+  const originalBtnText = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "解析中...";
+  }
+
+  xhr.upload.onprogress = (e) => {
+    if (!bar || !e.lengthComputable) return;
+    bar.classList.remove("hidden");
+    bar.value = (e.loaded / e.total) * 100;
+  };
+
+  xhr.onload = () => {
+    if (bar) {
+      bar.classList.add("hidden");
+      bar.value = 0;
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
+    }
+    if (xhr.status === 200) {
+      let resp;
+      try { resp = JSON.parse(xhr.responseText); }
+      catch (_) {
+        _plan3Toast("解析响应失败", "error");
+        return;
+      }
+      // Plan3 §7.4: parsed_text 注入到 view-material 的项目原文 textarea
+      // (Q6 上传按钮位于 view-material; index.html 实际 id = material-input)
+      const ta = document.getElementById("material-input");
+      if (ta && typeof resp.parsed_text === "string") {
+        ta.value = resp.parsed_text;
+        // visual feedback: 把焦点移到 textarea, 提示用户已填好可继续
+        ta.focus();
+      }
+      const warns = resp.parse_warnings || [];
+      if (warnDiv) {
+        if (warns.length) {
+          warnDiv.textContent = "解析提示：" + warns.join("；");
+          warnDiv.classList.remove("hidden");
+        } else {
+          warnDiv.textContent = "";
+          warnDiv.classList.add("hidden");
+        }
+      }
+      _plan3Toast(`已解析 ${file.name} (${(resp.parsed_text || "").length} 字)`, "info");
+    } else {
+      let detail = xhr.responseText || `HTTP ${xhr.status}`;
+      try {
+        const parsed = JSON.parse(detail);
+        if (typeof parsed.detail === "string") detail = parsed.detail;
+        else if (parsed.detail && typeof parsed.detail.message === "string") {
+          detail = parsed.detail.message;
+        } else if (parsed.detail) detail = JSON.stringify(parsed.detail);
+      } catch (_) {}
+      _plan3Toast(`上传失败 (${xhr.status})：${detail}`, "error");
+    }
+  };
+
+  xhr.onerror = () => {
+    if (bar) bar.classList.add("hidden");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
+    }
+    _plan3Toast("网络错误，上传失败", "error");
+  };
+
+  xhr.open("POST", "/api/uploads");
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("user_id", USER_ID);
+  xhr.send(fd);
+
+  // 重置 input 以允许重选同一文件 (input.change 不触发同值)
+  ev.target.value = "";
 });
