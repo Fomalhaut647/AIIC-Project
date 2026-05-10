@@ -16,6 +16,7 @@ if str(_repo_root) not in sys.path:
 
 from pydantic import BaseModel, Field
 
+from services.interviewer import REQUIRED_SLOTS
 from services.llm import call_deepseek
 from services.schemas import InterviewStage, RiskLevel, Target
 
@@ -66,7 +67,8 @@ SYNTHESIZE_USER_TEMPLATE = """\
 2. 必须能追问用户的真实项目细节（不要泛泛八股）
 3. 每题包含 followups (1-5 题) + good_answer_points (≥2) + red_flags (≥2)
 4. 每题标注 applies_to (从 [保研, 求职] 选一个或两个)
-5. 每题标注 related_slots（自由文本，对应 InterviewerOS.missing_slots 用法）
+5. 每题标注 related_slots（**只能从下面 slot 列表里选** — 用于和 InterviewerOS.missing_slots
+   做名字对齐；自由发明的 slot 名会脱离系统语义）：{slot_list}
 6. 不生成 「请介绍你的项目」 / 「你最大的优势是什么」 等低质八股
 """
 
@@ -116,6 +118,7 @@ async def _synthesize_batch(
             applies_to=["保研", "求职"],
             seeds_json=seeds_json,
             batch_size=batch_size,
+            slot_list=REQUIRED_SLOTS.get(state, []),
         )},
     ]
     fallback = _CardBatch(cards=[])  # 失败 = 空批次（不阻塞）
