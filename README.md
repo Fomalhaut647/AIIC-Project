@@ -1,43 +1,107 @@
-# AIIC-Project — AI 模拟面试官（16h Challenge）
+# AIIC ProjectProbe — AI 模拟面试官
 
-> **Status (2026-05-10)**: 主办方挑战题目「**AI 模拟面试官·16 小时项目挑战**」已于 08:00 公布，
-> 截止 5/10 24:00。题目原文：[`docs/2026-05-09_项目挑战说明.md`](./docs/2026-05-09_项目挑战说明.md)。
->
-> 当前 `main` 上仍是 v1（MiMo web chat，赛前热身），新挑战实现尚未开始。
-> v1 已归档到分支 `archive/web-chat-v1`，迁移到独立仓库后会从 `main` 移除。
+> **不是再问你一堆八股题，而是把你的项目追问到讲明白。**
 
-## v1 — MiMo Web Chat（current `main` contents, 即将被替换）
+面向准备 **AI 方向保研复试 / AI 岗位面试** 的本科生的项目深挖训练器。Demo: <https://aiic.fomalhaut647.com>（Basic Auth：账号见提交邮件）。
 
-A simple multi-conversation streaming chat web app talking to Xiaomi MiMo via the
-OpenAI-compatible endpoint. Deployed at <https://aiic.fomalhaut647.com>.
+## 这是什么
 
-## Stack
+ProjectProbe 由两个 AI 角色组成：
 
-- Backend: FastAPI + httpx (async SSE proxy)
-- Frontend: single-page vanilla HTML/CSS/JS (no build step)
-- Auth: Nginx HTTP Basic Auth
-- Env: Pixi-managed Python
+- **Coach（训练组长）**：了解你 + 制定训练路线 + 复盘 + 改简历
+- **Interviewer（面试官）**：模拟陌生复试老师 / 面试官，按状态机连续追问你的项目
 
-## Quick start (local dev)
+核心差异 vs 直接用 ChatGPT：
+
+| 维度 | ChatGPT 裸用 | ProjectProbe |
+|---|---|---|
+| 追问稳定性 | 不稳定，容易变成泛泛聊天 | S1-S6 状态机 + required slots 强制深挖 |
+| 反馈具体性 | 经常抽象「建议更具体」 | 指出 missing slots + what_i_want_to_hear |
+| 元认知 | 不知道为什么被追问 | **作弊模式：偷看面试官脑回路** — 看到面试官在想什么 |
+| 训练路线 | 自己规划 | Coach 根据表现安排下一轮 |
+
+## 核心闭环（demo 路径）
+
+1. 首页 → 「使用示例项目体验」（财会 Agent 项目预填）
+2. Interviewer 提问（S1 项目动机：「你是怎么发现这个痛点真实存在的？」）
+3. 用户答（演示故意答空泛）
+4. 系统识别 **缺失槽位** + 给反馈 + 追问
+5. 展开 **作弊模式**，看面试官内心 OS（hidden_concern / why_this_question / risk_level）
+6. 答几轮真实回答 → 状态机推进
+7. **最终报告**：总分 / 关键证据 / 最危险追问 / **简历改写** / 下一轮训练计划 / **幽默卡片**
+
+## 技术栈
+
+- **后端**：FastAPI + httpx + python-dotenv (Pixi-managed)
+- **前端**：单页 vanilla HTML/CSS/JS，无构建步骤
+- **LLM**：DeepSeek API（OpenAI 兼容）+ JSON repair retry + fallback 模板
+- **持久化**：in-memory dict + JSON 文件 dump（mock 工具，重启可丢 session）
+- **题库**：12 hand-written seed + 离线 DeepSeek 合成扩展到 ~60 cards（reviewed=true 36 张进入运行时）
+- **部署**：systemd unit + Nginx 1.24 + TLS (TrustAsia DV) + Basic Auth
+
+## Quick start
 
 ```bash
-# Put MIMO_API_KEY into .env first
+# 1. 克隆 + 配置 .env
+git clone <repo>
+cp .env.example .env  # 填入 DEEPSEEK_API_KEY
+
+# 2. 装环境
 pixi install
-pixi run serve   # http://127.0.0.1:8000
-pixi run test
+
+# 3. 跑测试
+pixi run test  # 59 tests pass
+
+# 4. 起服务（dev mode 带 reload）
+pixi run serve  # http://127.0.0.1:8000
+
+# 5.（可选）合成题库（一次性，~15min）
+pixi run synthesize-questions
+
+# 6. 后端 e2e smoke（real DeepSeek，跑通 onboard → plan → start → next×3 → review）
+pixi run python scripts/smoke_e2e.py
 ```
 
-## Layout
+## 项目结构
 
 ```
-server/   FastAPI app + MiMo upstream constants
-web/      index.html, app.js, styles.css
-tests/    pytest suite
-deploy/   systemd unit + nginx location snippet
-docs/     specs/, plans/
+services/                  Pydantic schemas + LLM 封装 + Coach + Interviewer
+  ├── schemas.py           UserModel / InterviewPacket / InterviewTurn / EvaluationReport / QuestionCard
+  ├── prompts.py           Coach + Interviewer prompt 字面常量
+  ├── llm.py               DeepSeek async client + JSON repair retry + fallback
+  ├── store.py             in-memory SessionStore + JSON 文件 dump
+  ├── coach.py             onboard / plan / review 三个能力
+  ├── interviewer.py       状态机 + slot 检测 + interviewer_os 生成
+  └── question_bank.py     运行时题库查询 (target/state/tag filter)
+
+server/main.py             FastAPI app: 8 endpoints + lifespan + 静态挂载
+web/                       单页 SPA: 5 视图 (home/onboarding/material/interview/report)
+scripts/                   smoke_e2e.py + synthesize_questions.py (离线合成脚本)
+data/question_bank.{seed,synthetic}.json   题库
+docs/                      overview.md + specs/ + plans/ (设计 + 实施文档)
+tests/                     pytest suite (59 tests)
 ```
 
-## Production
+## 文档
 
-Behind `aiic.fomalhaut647.com` (Nginx 1.24, TLS via TrustAsia DV, Basic Auth).
-See `CLAUDE.md` for deployment details.
+- [`docs/overview.md`](docs/overview.md) — v2 总纲（双 Agent 架构 / 状态机 / 题库 / P0 边界）
+- [`docs/specs/`](docs/specs) — 子方案设计（A 后端智能 / B 题库 / C API+前端）
+- [`docs/plans/`](docs/plans) — 实施 plan（Plan1A/B/C，含 bite-sized TDD 任务）
+- [`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md) — 主办方原题
+- [`docs/deployment.md`](docs/deployment.md) — 服务器 / nginx / SSL / Basic Auth 部署细节
+
+## AI 工具使用
+
+整个项目用 **Claude Code (Opus 4.7)** 协调实施：
+
+- **设计阶段**：人工与 Claude brainstorm → Claude 起草 spec/plan → 人工 review
+- **实施阶段**：3 个并行 implementer teammate（impl-A 后端 / impl-B 题库 / impl-C API+前端），每个在隔离 git worktree 工作
+- **Review 阶段**：3 个独立 reviewer teammate（用 `code-review` skill 5-parallel + Haiku confidence scoring），每个审一个 PR
+- **修复阶段**：原 implementer 收到 ≥80 conf issues 后用 `receiving-code-review` skill 五步评估流程修
+- **总耗时**：从 brainstorm 到部署 ~4h（包括 2 轮 reviewer + fix loop 的 process discipline）
+
+详细 commit history 在 main 上 44 commits past bootstrap，每个 commit 一个独立故事便于 git bisect。
+
+## License
+
+待补

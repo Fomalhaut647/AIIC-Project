@@ -2,9 +2,10 @@
 
 ## 项目概览
 
-- **当前阶段（2026-05-10）**：执行主办方挑战题目「**AI 模拟面试官·16 小时项目挑战**」（详见下方挑战说明节及 `docs/2026-05-09_项目挑战说明.md`，v2 总纲见 `docs/overview.md`），即将在 main 上实现
-- **v1 处置**：MiMo web chat（赛前热身）已归档到分支 `archive/web-chat-v1`；main 上 `server/` `web/` `tests/` `deploy/` 暂未清理，新实现启动前与用户确认要保留哪些
-- **类型 / 部署目标**：Python (Pixi)；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
+- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官**已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)、[`docs/plans/`](docs/plans)。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
+- **v1 处置**：MiMo web chat 业务代码已归档到分支 `archive/web-chat-v1`，bootstrap commit `975a1f0` 从 main 删除（保留 pixi.toml / pytest.ini / .env / docs/ 等基础设施）
+- **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek API；vanilla JS 单页前端；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
+- **代码规模**：main 上 v2 = bootstrap 后 44 commits；core modules: `services/` (后端智能) + `server/main.py` (FastAPI) + `web/` (前端 SPA) + `scripts/synthesize_questions.py` (离线题库合成) + `data/question_bank.{seed,synthetic}.json` (12 seed + 36 reviewed=true 合成题)；测试 59 passes
 
 ## 项目挑战说明（2026-05-09 主办方下发）
 
