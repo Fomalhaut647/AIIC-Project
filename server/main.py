@@ -13,6 +13,7 @@ Lifespan responsibilities:
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import uuid
 from contextlib import asynccontextmanager
@@ -660,6 +661,10 @@ async def api_coach_resume_iterate(body: _ResumeIterateReq) -> ResumeRevision:
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_USER_QUOTA = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTS = {"pdf", "docx", "md", "txt"}
+# 防 path-traversal：user_id 用作 FS 路径组件，必须严格白名单
+# (TODO: 同型 latent bug 也存在于 services/store.py:_user_profile_path
+#  — Plan2 retrofit 不在 Q4 scope，留 followup)
+USER_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 @app.post("/api/uploads", response_model=UploadResponse)
@@ -669,22 +674,37 @@ async def upload_file(
 ):
     """Spec E §7.2 — 上传项目材料；解析后注入 onboarding/material textarea。"""
     if not file.filename:
-        raise HTTPException(400, "filename missing")
+        raise HTTPException(status_code=400, detail="filename missing")
+
+    if not USER_ID_PATTERN.fullmatch(user_id):
+        raise HTTPException(
+            status_code=400,
+            detail="invalid user_id (must be 1-64 chars from [A-Za-z0-9_-])",
+        )
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if ext not in ALLOWED_EXTS:
-        raise HTTPException(400, f"unsupported file type: .{ext}")
+        raise HTTPException(status_code=400, detail=f"unsupported file type: .{ext}")
 
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(413, f"file too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)")
+        raise HTTPException(
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)",
+        )
 
     # Plan2 P7 pattern: per-request 读 DATA_DIR env，不缓存为 module 常量
     data_dir = Path(os.environ.get("DATA_DIR", "data"))
     user_dir = data_dir / "uploads" / user_id
     used = sum(p.stat().st_size for p in user_dir.glob("*") if p.is_file()) if user_dir.exists() else 0
+    # Race window: quota check 与下面 write_bytes 之间无锁；并发请求都 check 通过
+    # 可能小幅超 quota。single-user demo 接受；多租户部署需 per-user asyncio.Lock
+    # （参考 services/store.py:_user_locks）
     if used + len(contents) > MAX_USER_QUOTA:
-        raise HTTPException(413, f"user quota exceeded (max {MAX_USER_QUOTA // 1024 // 1024}MB)")
+        raise HTTPException(
+            status_code=413,
+            detail=f"user quota exceeded (max {MAX_USER_QUOTA // 1024 // 1024}MB)",
+        )
 
     file_id = str(uuid.uuid4())
     user_dir.mkdir(parents=True, exist_ok=True)
@@ -693,9 +713,11 @@ async def upload_file(
 
     try:
         parsed_text, warnings = await parse_file(raw_path, ext)
-    except Exception as e:
+    except (ValueError, RuntimeError) as e:
+        # 解析失败 = user error → 422，不暴露原始异常文本（可能含 fitz 内部 message）
+        # `from e` 保留 chain 给 server-side stderr，client 只看 clean message
         raw_path.unlink(missing_ok=True)
-        raise HTTPException(422, f"parse failed: {e}")
+        raise HTTPException(status_code=422, detail="parse failed") from e
 
     meta = UploadedFile(
         file_id=file_id,
