@@ -85,7 +85,7 @@ def test_tts_endpoint_called_with_question_text(client):
                 "user_id": "u-int",
             },
         )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("audio/mpeg")
     assert r.content == b"audio bytes"
     p.assert_awaited_once()
