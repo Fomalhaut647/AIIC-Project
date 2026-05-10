@@ -47,17 +47,18 @@ def _parse_pdf(path: Path) -> tuple[str, list[str]]:
 def _parse_docx(path: Path) -> tuple[str, list[str]]:
     """python-docx 抽段落 + 表格。"""
     warnings: list[str] = []
-    # python-docx 解析损坏 .docx 抛两类异常（都继承 Exception 不继承 ValueError）：
-    #   1. PackageNotFoundError (OpcError 子类) — 文件不是 valid OPC zip 包
-    #      （非 zip 字节 / 文件被截断在 zip header 之前）
-    #   2. zipfile.BadZipFile — zip 结构 OK 但内容损坏（文件被中途截断）
+    # python-docx 解析损坏 .docx 至少抛三类异常（都不继承 ValueError）：
+    #   1. PackageNotFoundError (OpcError 子类) — phys_pkg 层未识别 zip
+    #   2. zipfile.BadZipFile — zip 结构损坏 / 非 zip 字节
+    #   3. KeyError — valid zip 但缺 [Content_Types].xml（用户 mv archive.zip
+    #      resume.docx 场景；从 zipfile.getinfo() 直接冒出未 wrap）
     # endpoint 层 catch (ValueError, RuntimeError) narrow except 不覆盖以上
-    # 任一 → 逃成 fastapi 500 + raw 文件 orphan leak quota。在 service 层
-    # wrap 成 ValueError 让 endpoint 走 422 + unlink raw 路径，与 _parse_pdf
-    # 的 "encrypted" ValueError 模式对齐。
+    # 任一 → 逃成 fastapi 500 + raw 文件 orphan leak quota（spec §4 raw+json
+    # 配对契约 broken）。service 层 wrap 成 ValueError 让 endpoint 走 422 +
+    # unlink raw 路径，与 _parse_pdf 的 "encrypted" ValueError 模式对齐。
     try:
         doc = Document(str(path))
-    except (OpcError, zipfile.BadZipFile) as e:
+    except (OpcError, zipfile.BadZipFile, KeyError) as e:
         raise ValueError("docx file is corrupted or not a valid .docx") from e
     parts: list[str] = []
     for p in doc.paragraphs:

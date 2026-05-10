@@ -175,11 +175,10 @@ def test_upload_rollback_on_parse_failure(client, tmp_path, monkeypatch):
 
 
 def test_upload_corrupt_docx_returns_422_and_unlinks(client, tmp_path):
-    """损坏的 .docx (非 zip 字节) → service 层 wrap BadZipFile→ValueError →
-    endpoint 422 + raw_path unlink。验 PR review Issue 2 修复 (BadZipFile
-    继承 Exception 不继承 ValueError，narrow except 必须显式覆盖否则 raw
-    leak quota + 用户看到 500 而非 spec 要求的 422)。"""
-    # 不是 valid zip 的 bytes —— python-docx 调 zipfile 解时抛 BadZipFile
+    """非 valid zip 的 .docx → service 层 wrap → endpoint 422 + raw unlink。
+    实测此 fixture 触发 zipfile.BadZipFile（reviewer round 2 empirical 验证；
+    我之前 commit message 误标 PackageNotFoundError，path 在 phys_pkg 层 raise
+    但实测 trace 是 BadZipFile）。验 PR review Issue 2 修复。"""
     fake_docx = b"\x00\x00\x00\x00 not a real zip"
     r = client.post(
         "/api/uploads",
@@ -194,5 +193,33 @@ def test_upload_corrupt_docx_returns_422_and_unlinks(client, tmp_path):
     assert r.json()["detail"] == "parse failed"
 
     user_dir = tmp_path / "uploads" / "u-corrupt"
+    if user_dir.exists():
+        assert list(user_dir.glob("*")) == []
+
+
+def test_upload_zip_without_content_types_returns_422_and_unlinks(client, tmp_path):
+    """valid zip 但缺 [Content_Types].xml (用户 mv archive.zip resume.docx 场景)
+    → python-docx 从 zipfile.getinfo() 抛 raw KeyError → service 层必须 catch
+    KeyError wrap 成 ValueError，否则 endpoint narrow except 不覆盖 → 500 + raw
+    orphan。reviewer round 2 score 100 sibling bug。"""
+    import zipfile
+    from io import BytesIO
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("foo.txt", "hello")  # valid zip, but no [Content_Types].xml
+
+    r = client.post(
+        "/api/uploads",
+        files={"file": (
+            "fake.docx",
+            buf.getvalue(),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )},
+        data={"user_id": "u-fakezip"},
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "parse failed"
+
+    user_dir = tmp_path / "uploads" / "u-fakezip"
     if user_dir.exists():
         assert list(user_dir.glob("*")) == []
