@@ -1,0 +1,3207 @@
+[
+  {
+    "id": "motivation_user_value_001",
+    "category": "项目动机",
+    "tags": [
+      "motivation",
+      "user_pain"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "用户项目涉及解决某类用户痛点",
+    "question": "你是怎么发现这个痛点真实存在的？你访谈过几个真实用户吗？",
+    "followups": [
+      "他们当时具体说了什么？能回忆一句原话吗？",
+      "如果只用现有工具（Excel / ChatGPT）能不能解决？为什么不行？",
+      "你的目标用户群有多大？怎么估算的？"
+    ],
+    "good_answer_points": [
+      "举出真实用户访谈例子",
+      "解释为什么现有工具不够",
+      "对用户群规模有量化估计"
+    ],
+    "red_flags": [
+      "「我觉得这个需求是真的」无证据",
+      "把竞品介绍当用户痛点",
+      "用户群只是「所有 X 用户」无细分"
+    ],
+    "related_slots": [
+      "pain_real",
+      "target_user"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "motivation_timing_001",
+    "category": "项目动机",
+    "tags": [
+      "motivation",
+      "timing"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "用户项目用了某种新技术（LLM / Agent / 多模态等）",
+    "question": "为什么是现在做这个项目？这件事 2 年前能做吗？2 年后还会有意义吗？",
+    "followups": [
+      "如果用 GPT-3 时代的能力做，会差在哪里？",
+      "如果你是投资人，为什么应该投资现在做这件事？"
+    ],
+    "good_answer_points": [
+      "指出某项关键技术 / 数据 / 政策刚刚成熟",
+      "解释机会窗口（为什么现在 vs 之前 / 之后）"
+    ],
+    "red_flags": [
+      "「最近 AI 很火所以做」",
+      "完全没考虑时机"
+    ],
+    "related_slots": [
+      "timing"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "overview_personal_contribution_001",
+    "category": "项目概述",
+    "tags": [
+      "personal_contribution",
+      "team"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "用户提到团队项目 / 多人合作",
+    "question": "整个项目里，哪些部分是你独立完成的？哪些是团队其他人做的？",
+    "followups": [
+      "你独立完成的那部分，如果让团队其他人接手，他们能 1 天内上手吗？",
+      "你贡献最大的一个技术决策是什么？为什么是你做的，不是别人？"
+    ],
+    "good_answer_points": [
+      "清晰区分自己 vs 团队的工作边界",
+      "举出 ≥1 个具体技术决策 + 自己的角色",
+      "用「我设计 / 我实现 / 我调试」具体动词"
+    ],
+    "red_flags": [
+      "全程「我们」无法区分个人贡献",
+      "贡献描述只到「我也参与了」",
+      "把团队成果包装成个人成果"
+    ],
+    "related_slots": [
+      "personal_contribution"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "overview_architecture_001",
+    "category": "项目概述",
+    "tags": [
+      "architecture",
+      "system_design"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "用户项目有 ≥2 个组件 / 模块 / Agent",
+    "question": "请用 ≤30 秒描述系统架构。哪一个模块是你认为设计最巧妙的？",
+    "followups": [
+      "如果去掉那个最巧妙的模块，系统会怎样？",
+      "数据从输入到输出经过几跳？每一跳都必要吗？"
+    ],
+    "good_answer_points": [
+      "30 秒能讲完主架构（说明用户真懂）",
+      "指出关键设计决策并解释 why",
+      "能讲清「不要什么」（去除冗余）"
+    ],
+    "red_flags": [
+      "讲 5 分钟还没讲到核心",
+      "只能罗列模块名，讲不出关系",
+      "无法回答「去掉某模块会怎样」"
+    ],
+    "related_slots": [
+      "architecture",
+      "user_flow"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "tech_alternatives_001",
+    "category": "技术深挖",
+    "tags": [
+      "alternatives",
+      "method_choice"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "用户项目用了某种 ML 方法 / 框架 / 算法",
+    "question": "你为什么选了这个方法而不是 X？X 的优势在你这个场景里被什么 trade-off 否决了？",
+    "followups": [
+      "如果你的输入数据规模翻 10 倍，你的方法选择会变吗？",
+      "如果让你重新做这个项目，会改方法吗？"
+    ],
+    "good_answer_points": [
+      "明确说出考虑过的备选方案",
+      "用具体 trade-off 解释（不是「这个更好」）",
+      "承认当前方法的局限"
+    ],
+    "red_flags": [
+      "「这是最常用的方法」无对比",
+      "「这个方法效果好」无定量比较",
+      "完全没考虑过备选"
+    ],
+    "related_slots": [
+      "method_choice_reason",
+      "alternatives"
+    ],
+    "difficulty": "高",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "tech_engineering_001",
+    "category": "技术深挖",
+    "tags": [
+      "engineering",
+      "production"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "用户项目部署到了真实环境 / 有实际用户",
+    "question": "项目上线 / 给真实用户用过之后，你修过的最棘手的 1 个 bug 是什么？根因是什么？",
+    "followups": [
+      "你怎么发现这个 bug 的？有 monitoring 吗？",
+      "修复后有什么 regression test 防止它复发？"
+    ],
+    "good_answer_points": [
+      "讲出具体 bug 现象 + 根因",
+      "讲清自己 debug 的步骤",
+      "提到 monitoring / regression 等工程实践"
+    ],
+    "red_flags": [
+      "讲不出具体 bug（说明项目其实没真跑）",
+      "「调一调就好了」无根因分析"
+    ],
+    "related_slots": [
+      "engineering_details"
+    ],
+    "difficulty": "高",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "eval_baseline_001",
+    "category": "实验验证",
+    "tags": [
+      "baseline",
+      "evaluation"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "用户项目中提到模型 / Agent / 系统效果 / 自动化提升",
+    "question": "你如何证明你的方案比一个更简单的 baseline 更好？",
+    "followups": [
+      "你的 baseline 具体是什么？",
+      "你比较的是准确率、效率、成本，还是用户体验？",
+      "如果没有量化实验，你如何让面试官相信这个提升是真实的？"
+    ],
+    "good_answer_points": [
+      "明确 baseline（如「直接调 GPT-4」/「人工」）",
+      "定义评估指标",
+      "说明数据来源",
+      "给出对比结果（量化或定性）"
+    ],
+    "red_flags": [
+      "只说效果更好但没有证据",
+      "没有 baseline",
+      "没有指标",
+      "把主观体验当唯一证明"
+    ],
+    "related_slots": [
+      "baseline",
+      "metric",
+      "data_source",
+      "control_experiment"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "eval_error_analysis_001",
+    "category": "实验验证",
+    "tags": [
+      "error_analysis",
+      "evaluation"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "用户项目有评估实验",
+    "question": "你的方案错的那些 case，你分析过原因吗？错误分布是什么？",
+    "followups": [
+      "错误中有多少是模型本身的问题，多少是数据 / 评估的问题？",
+      "你有没有发现某一类错误特别集中？怎么解释？"
+    ],
+    "good_answer_points": [
+      "做过错误分类",
+      "区分模型错 / 数据错 / 评估错",
+      "举出具体错误 case + 原因假设"
+    ],
+    "red_flags": [
+      "「准确率 85%」但说不出错的那 15% 是什么",
+      "把所有错都归因为「数据不够」"
+    ],
+    "related_slots": [
+      "error_analysis"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "reflect_edge_case_001",
+    "category": "失败反思",
+    "tags": [
+      "edge_case",
+      "robustness"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "用户项目处理某种结构化或半结构化输入",
+    "question": "举一个让你的系统当场出错 / 表现糟糕的具体输入。为什么会糟糕？",
+    "followups": [
+      "你发现这个 edge case 是在开发中、测试中还是真实使用中？",
+      "如果让你重做，怎么从设计上避免这一类 edge case？"
+    ],
+    "good_answer_points": [
+      "讲出具体 edge case 输入 + 现象",
+      "解释根因",
+      "讨论设计层面的改进方案"
+    ],
+    "red_flags": [
+      "「我们没遇到过失败」（说明测试覆盖太薄）",
+      "把 edge case 推给「用户用错了」"
+    ],
+    "related_slots": [
+      "failure_case",
+      "edge_condition"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "reflect_limit_001",
+    "category": "失败反思",
+    "tags": [
+      "current_limit",
+      "honesty"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "面试已进行 ≥4 轮",
+    "question": "如果让你诚实评价：你这个项目目前最大的局限是什么？面试官最容易在哪里打你脸？",
+    "followups": [
+      "知道这个局限后，你下一步会怎么解决？",
+      "为什么之前没解决？"
+    ],
+    "good_answer_points": [
+      "诚实说出真实局限（不假装完美）",
+      "对局限有思考 + 改进路线",
+      "解释为什么暂未解决（资源 / 时间 / 数据 / 技术 trade-off）"
+    ],
+    "red_flags": [
+      "「目前没什么局限」（致命）",
+      "把局限说成「未来 work」逃避当下问题"
+    ],
+    "related_slots": [
+      "current_limit",
+      "improvement"
+    ],
+    "difficulty": "高",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "match_research_direction_001",
+    "category": "匹配与总结",
+    "tags": [
+      "research_direction",
+      "fit"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "保研场景，面试已到收尾",
+    "question": "你这个项目和你想报考的实验室 / 老师的研究方向具体哪里 overlap？哪里不 overlap？",
+    "followups": [
+      "如果不 overlap 的部分让面试老师觉得你「不专一」，你怎么解释？",
+      "未来研究方向里你最想往哪个 sub-direction 深挖？"
+    ],
+    "good_answer_points": [
+      "具体说出实验室 / 老师近 2 年的工作",
+      "诚实指出 overlap 与 gap",
+      "把 gap 解释为「跨域优势」而非「不相关」"
+    ],
+    "red_flags": [
+      "对目标实验室一无所知",
+      "硬套「我也做 AI 你们也做 AI 所以匹配」"
+    ],
+    "related_slots": [
+      "match_to_target",
+      "future_direction",
+      "fit_reason"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "id": "match_job_role_001",
+    "category": "匹配与总结",
+    "tags": [
+      "job_role",
+      "fit"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "求职场景，面试已到收尾",
+    "question": "如果你今天加入这个团队，你能在 1 个月内交付什么？这个项目里哪些经验可以直接迁移？",
+    "followups": [
+      "你做不到的部分（团队需要你做但你没做过）会是什么？",
+      "你打算如何快速补齐？"
+    ],
+    "good_answer_points": [
+      "用项目经验对应到具体团队 deliverable",
+      "诚实承认空缺",
+      "给出可执行的补齐路线"
+    ],
+    "red_flags": [
+      "「我什么都能学」无具体迁移路径",
+      "把所有 JD 关键词照单全收"
+    ],
+    "related_slots": [
+      "match_to_target",
+      "personal_growth",
+      "fit_reason"
+    ],
+    "difficulty": "中",
+    "source": "seed",
+    "reviewed": true
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "需求验证"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "除了你自己，还有谁认为这个问题值得解决？你如何说服他们？",
+    "followups": [
+      "导师或同学最初是什么态度？",
+      "如果没有人支持，你还会坚持做吗？"
+    ],
+    "good_answer_points": [
+      "能清晰说出至少一位外部支持者（如导师、行业人士）及其认可理由",
+      "有主动沟通、寻求反馈并调整方向的过程"
+    ],
+    "red_flags": [
+      "完全闭门造车，没有与任何人讨论过",
+      "声称所有人都支持但无法举出具体例子"
+    ],
+    "related_slots": [
+      "supporters",
+      "validation_method"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_001_910c85",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111509+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "竞品分析"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "市面上有没有类似的项目或产品？你的和他们比，核心差异是什么？",
+    "followups": [
+      "如果已有成熟方案，你为什么还要重复造轮子？",
+      "你有没有借鉴过某个开源项目？具体改进了什么？"
+    ],
+    "good_answer_points": [
+      "能列举1-2个竞品并指出具体不足或差异",
+      "有清晰的差异化定位或改进点"
+    ],
+    "red_flags": [
+      "声称没有竞品，但经追问后发现是调研不充分",
+      "差异点过于空泛（如“更好用”）而无技术或场景支撑"
+    ],
+    "related_slots": [
+      "competitors",
+      "differentiation"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_002_8e335e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111540+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "用户研究"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "你最初是如何定义目标用户的？最终用户画像和最初假设有何不同？",
+    "followups": [
+      "有没有发现某些用户群体的需求你之前完全没考虑到？",
+      "假如现在让你重新定义用户，你会怎么改？"
+    ],
+    "good_answer_points": [
+      "能描述从假设到验证的过程，包括数据或访谈依据",
+      "承认最初设想有偏差并据此调整了方向"
+    ],
+    "red_flags": [
+      "用户画像始终模糊，无法说出具体特征",
+      "声称目标用户是“所有人”"
+    ],
+    "related_slots": [
+      "target_user",
+      "user_research"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_003_7c1ae5",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111558+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "个人动机"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "这个项目和你之前做过的某个项目/课程设计有什么联系？是延续还是另起炉灶？",
+    "followups": [
+      "如果有关联，具体继承了什么技术或思路？",
+      "如果没有关联，为什么选择全新的方向？"
+    ],
+    "good_answer_points": [
+      "能清晰说明项目之间的演进逻辑或技术积累",
+      "有明确的个人成长轨迹主线"
+    ],
+    "red_flags": [
+      "项目之间毫无关联且说不出选择新方向的合理理由",
+      "回答前后矛盾，暴露简历上的项目是拼凑的"
+    ],
+    "related_slots": [
+      "prior_experience",
+      "skill_evolution"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_004_4b4d26",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111573+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "数据驱动"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "你说这个问题很严重，有数据支撑吗？比如用户量、频率、经济损失等。",
+    "followups": [
+      "这些数据是公开的、自己调研的还是估算的？",
+      "如果数据不足，你如何保证问题不是伪需求？"
+    ],
+    "good_answer_points": [
+      "能给出具体数字或引用来源，说明问题规模",
+      "有意识地收集数据验证问题，而非仅凭直觉"
+    ],
+    "red_flags": [
+      "只有定性描述，没有任何数据",
+      "数据明显编造或无法解释来源"
+    ],
+    "related_slots": [
+      "problem_data",
+      "data_source"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_005_01892c",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111587+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题发现",
+      "时间窗口"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "项目动机",
+    "question": "你有没有想过如果这个项目做不成，你的备选方案是什么？或者说，你为什么会觉得这个方向值得冒险？",
+    "followups": [
+      "对于保研/求职来说，你如何平衡项目风险和成功率？",
+      "如果当时有另一个更稳妥的方向，你会怎么选？"
+    ],
+    "good_answer_points": [
+      "有风险意识，并准备了B计划或评估过失败成本",
+      "能清晰说明选择该方向的独特价值，而非盲目自信"
+    ],
+    "red_flags": [
+      "声称“从来没想过失败”，显得不成熟",
+      "将项目成败与个人价值完全绑定，缺乏弹性"
+    ],
+    "related_slots": [
+      "risk_assessment",
+      "alternative_plan"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_006_187ae7",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111599+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "用户调研",
+      "需求验证",
+      "真实场景"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "启发",
+    "question": "在项目启动前，你做了哪些具体的调研来确认这个问题确实值得解决？能否分享一个让你印象深刻的反例或意外发现？",
+    "followups": [
+      "如果调研结果不支持你的初始假设，你会如何调整项目方向？",
+      "你如何区分用户‘想要’和‘需要’？能举一个例子吗？"
+    ],
+    "good_answer_points": [
+      "能够描述具体的调研方法（如问卷、访谈、数据分析），并说明样本量和关键发现。",
+      "提到真实的反例或意外发现，展示对需求不确定性的认识。"
+    ],
+    "red_flags": [
+      "回答模糊，只说‘我直觉觉得’或‘大家都说’。",
+      "没有提及任何具体调研数据或用户反馈。"
+    ],
+    "related_slots": [
+      "调研方法",
+      "需求验证",
+      "用户洞察"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_007_8edc4e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111611+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "时间选择",
+      "技术条件",
+      "可行性"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "时机",
+    "question": "这个项目如果放在三年前，技术上最大的障碍是什么？三年后，你认为它会被什么技术替代或淘汰？",
+    "followups": [
+      "你考虑过用更成熟的现有方案吗？为什么最终选择自己开发？",
+      "如果现在有类似的开源项目，你还会做这个吗？"
+    ],
+    "good_answer_points": [
+      "能具体指出技术瓶颈（如模型能力、数据量、算力），并说明当时的局限性。",
+      "对未来技术趋势有自己的判断，且与项目定位相关。"
+    ],
+    "red_flags": [
+      "认为项目完全不受技术发展影响，或者回答过于笼统。",
+      "没有意识到可能被替代的风险，显得缺乏前瞻性。"
+    ],
+    "related_slots": [
+      "技术可行性",
+      "时机判断",
+      "技术趋势"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_008_054dd1",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111641+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "个人动机",
+      "独特性",
+      "差异化"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "独特性",
+    "question": "市面上有很多类似的项目或产品，你认为你的项目在动机层面有什么独特之处？为什么你觉得自己是解决这个问题最合适的人选？",
+    "followups": [
+      "你对比过哪些竞品？他们的主要不足是什么？",
+      "你的个人背景或经历中，哪个部分让你对这个痛点特别敏感？"
+    ],
+    "good_answer_points": [
+      "能列出1-2个竞品，并具体指出它们的局限（如成本高、不落地、不适合特定场景）。",
+      "将个人经历与项目动机联系起来，展示不可替代性。"
+    ],
+    "red_flags": [
+      "声称没有竞品或项目独一无二，但说不出理由。",
+      "个人动机空洞，与项目关联不强。"
+    ],
+    "related_slots": [
+      "竞品分析",
+      "个人优势",
+      "项目定位"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_009_0c0630",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111660+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "问题定义",
+      "范围限定",
+      "核心矛盾"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "聚焦",
+    "question": "你最初想解决的问题范围可能很大，你是如何一步步缩小到当前这个具体问题的？在哪一步你感到最难取舍？",
+    "followups": [
+      "有没有考虑过其他子问题？为什么最后选了这个？",
+      "如果资源无限，你会扩大问题范围吗？会如何做？"
+    ],
+    "good_answer_points": [
+      "描述问题收敛的过程，包括关键决策点和取舍原因。",
+      "提到具体的约束（如时间、数据、硬件）如何影响范围。"
+    ],
+    "red_flags": [
+      "说问题一开始就很清晰，没有迭代过程。",
+      "无法解释为什么当前问题比其他子问题更重要。"
+    ],
+    "related_slots": [
+      "问题定义",
+      "范围收敛",
+      "决策过程"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_010_fc2fb5",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111674+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "利益相关者",
+      "实际影响",
+      "价值评估"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "利益相关者",
+    "question": "除了你自己，还有哪些人/群体从这个项目中受益？你如何量化或证明他们对这个需求的迫切程度？",
+    "followups": [
+      "你接触过潜在受益者吗？他们对你项目的期待是什么？",
+      "如果这个项目成功落地，你认为最可能改变谁的行为？"
+    ],
+    "good_answer_points": [
+      "能区分不同利益相关者（如用户、企业、社会），并描述各自受益方式。",
+      "有具体的证据（如访谈记录、数据指标）证明需求紧迫。"
+    ],
+    "red_flags": [
+      "只提到自己或团队受益。",
+      "没有实际接触过利益相关者，仅凭假设。"
+    ],
+    "related_slots": [
+      "利益相关者",
+      "社会影响",
+      "需求紧迫性"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_011_495187",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111703+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目动机",
+    "tags": [
+      "资源利用",
+      "已有基础",
+      "延续性"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S1_motivation",
+    "trigger": "基础",
+    "question": "这个项目的想法是凭空产生的，还是基于你之前的学习/项目经验？有没有其他项目为它奠定了基础？",
+    "followups": [
+      "如果之前有相关经验，具体哪个知识点或工具最有用？",
+      "如果完全是新领域，你如何快速补充相关知识？"
+    ],
+    "good_answer_points": [
+      "能清晰指出前期项目或课程与当前项目的联系，展示知识迁移能力。",
+      "如果无直接基础，说明高效学习的方法（如论文、开源代码、在线课程）。"
+    ],
+    "red_flags": [
+      "回答‘完全是新的，没有任何基础’，且无学习计划。",
+      "牵强附会，硬说有关系但经不起追问。"
+    ],
+    "related_slots": [
+      "知识迁移",
+      "学习能力",
+      "项目延续性"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目动机_012_40dc4d",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:05.111730+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "分工",
+      "贡献",
+      "合作"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目背景",
+    "question": "在这个项目里，你个人最大的贡献是什么？如果必须量化，你会怎么描述？",
+    "followups": [
+      "有没有哪个关键决策是你提出的？",
+      "你的贡献和团队其他成员相比，有什么独特之处？",
+      "如果让你重新分配任务，你会怎么调整？"
+    ],
+    "good_answer_points": [
+      "能清晰说出具体贡献，如设计了某个模块、优化了某指标",
+      "能提供量化证据，如提升准确率5%、减少推理时间20%",
+      "能讲出背后的思考过程，而不是简单列举"
+    ],
+    "red_flags": [
+      "回答模糊，如“我做了很多工作”但说不出具体内容",
+      "把所有功劳归于自己，不承认团队协作",
+      "量化数据明显夸大或无法解释"
+    ],
+    "related_slots": [
+      "project_role",
+      "key_contributions",
+      "team_structure"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_013_13d735",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155315+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "动机",
+      "问题定义",
+      "价值"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目动机",
+    "question": "这个项目最初是怎么想到的？是导师指定的还是自己提出的？",
+    "followups": [
+      "你在项目开始前做了哪些调研？",
+      "有没有考虑过其他方案？为什么选了现在这个？",
+      "如果现在有更多资源，你会改变项目的方向吗？"
+    ],
+    "good_answer_points": [
+      "能说明项目背景和现实问题，体现问题意识",
+      "有文献调研或竞品分析，说明不是拍脑袋",
+      "能分析不同方案的利弊，体现决策能力"
+    ],
+    "red_flags": [
+      "说“导师让做的”但说不清意义",
+      "没有调研过程，直接说“觉得有趣”",
+      "无法合理评价其他方案"
+    ],
+    "related_slots": [
+      "project_origin",
+      "motivation",
+      "alternatives"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_014_292279",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155361+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "架构",
+      "设计",
+      "权衡"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "架构描述",
+    "question": "这个项目在技术选型上做过哪些关键权衡？比如为什么选A框架而不是B？",
+    "followups": [
+      "你选择的方案有什么局限？",
+      "如果数据量增大10倍，架构需要做什么改动？",
+      "有没有遇到过因技术选型导致的问题？"
+    ],
+    "good_answer_points": [
+      "对比了多种方案，如PyTorch vs TensorFlow，或不同模型结构",
+      "能说出权衡点，如训练速度 vs 精度、内存 vs 性能",
+      "能指出所选方案的劣势，并说明为何仍然接受"
+    ],
+    "red_flags": [
+      "只回答“大家都用这个”",
+      "无法说出任何缺点",
+      "对技术选型一知半解，说错框架特性"
+    ],
+    "related_slots": [
+      "tech_choices",
+      "tradeoffs",
+      "scalability"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_015_8efa00",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155385+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "数据",
+      "预处理",
+      "质量"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "数据来源",
+    "question": "项目的数据是怎么收集和标注的？你参与了多少？遇到的最大困难是什么？",
+    "followups": [
+      "数据量有多大？类别平衡吗？",
+      "如何处理标注不一致？",
+      "有没有因为数据问题导致模型效果差？怎么解决的？"
+    ],
+    "good_answer_points": [
+      "能详细描述数据来源、标注流程、质量控制",
+      "提出遇到的数据问题及解决思路，如重采样、数据增强",
+      "有清晰的数据统计，如数量、分布"
+    ],
+    "red_flags": [
+      "说“数据是现成的”但不知道来源",
+      "没考虑过数据质量问题",
+      "不能描述任何数据预处理步骤"
+    ],
+    "related_slots": [
+      "data_source",
+      "data_quality",
+      "preprocessing"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_016_9861ef",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155441+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "项目周期",
+      "时间管理",
+      "迭代"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "时间线",
+    "question": "这个项目从开始到结束花了多长时间？中间有没有调整过计划？",
+    "followups": [
+      "哪部分花费时间最长？为什么？",
+      "有没有遇到过延期？怎么处理的？",
+      "如果重新来，你会怎么安排时间？"
+    ],
+    "good_answer_points": [
+      "给出明确时间线，如3个月分几个阶段",
+      "指出最耗时的环节并分析原因",
+      "展示应对延期的策略，如砍需求、加班"
+    ],
+    "red_flags": [
+      "时间线模糊，如“断断续续”",
+      "说从没遇到问题或调整",
+      "不会时间管理，没有计划"
+    ],
+    "related_slots": [
+      "timeline",
+      "project_planning",
+      "time_management"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_017_7e9891",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155455+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "难点",
+      "创新",
+      "解决"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目难点",
+    "question": "项目里遇到的最大技术难点是什么？你是怎么解决的？",
+    "followups": [
+      "这个难点和你的预期有什么不同？",
+      "有没有想过放弃？为什么坚持？",
+      "解决后有什么经验可以总结？"
+    ],
+    "good_answer_points": [
+      "能具体描述难点，如梯度消失、过拟合、部署延迟",
+      "展示解决过程，包括尝试过哪些方法",
+      "能从失败中学习，总结方法论"
+    ],
+    "red_flags": [
+      "说“没什么难点”",
+      "讲不清具体技术细节",
+      "解决方案是网上抄的但说不明白"
+    ],
+    "related_slots": [
+      "technical_challenges",
+      "solutions",
+      "learning_outcomes"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_018_fd9534",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155469+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "协作",
+      "分工",
+      "项目管理"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "请描述团队协作中一次意见分歧，你是如何处理的？",
+    "question": "在项目进行中，团队成员之间是否有过技术路线上的分歧？你是如何推动达成共识的？",
+    "followups": [
+      "具体是哪两种方案？各自的优缺点是什么？",
+      "最终选择的方案在后续开发中是否暴露出问题？",
+      "如果重新来过，你会坚持还是调整决策？"
+    ],
+    "good_answer_points": [
+      "具体说明分歧的技术细节，而非泛泛而谈",
+      "展现倾听他人意见并理性分析的能力",
+      "提及如何通过实验或调研数据说服团队"
+    ],
+    "red_flags": [
+      "没有具体例子，只说‘大家都很和谐’",
+      "一味强调自己正确，贬低他人方案",
+      "逃避责任，说‘最后老师定的’"
+    ],
+    "related_slots": [
+      "teamwork_conflict_case",
+      "decision_making_process"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_019_afc368",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155481+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "数据",
+      "实验",
+      "资源"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目用到了数据集/计算资源吗？",
+    "question": "你的项目使用了哪些公开数据集或自采数据？数据质量如何保证？",
+    "followups": [
+      "数据集规模多大？训练/验证/测试如何划分？",
+      "数据清洗和标注过程中遇到了哪些挑战？",
+      "数据分布是否影响模型泛化？如何缓解？"
+    ],
+    "good_answer_points": [
+      "清晰说出数据集来源、大小、划分比例",
+      "提到数据清洗、异常处理等具体步骤",
+      "分析数据偏差并说明缓解措施"
+    ],
+    "red_flags": [
+      "不知道数据集的具体规模或来源",
+      "没有考虑数据质量或分布问题",
+      "直接使用现成数据集且不做任何预处理"
+    ],
+    "related_slots": [
+      "dataset_source",
+      "data_preprocessing_details",
+      "data_bias_handling"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_020_ee5ea5",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155492+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "技术选型",
+      "框架",
+      "库"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "为什么选择这个框架/库？",
+    "question": "在技术选型（如框架、库、算法）时，你主要考虑了哪些因素？有没有做过对比实验？",
+    "followups": [
+      "对比了哪些备选方案？各自优劣？",
+      "最终选型在性能、开发效率或可扩展性上是否有明显优势？",
+      "如果现在重新选型，你会改变什么？"
+    ],
+    "good_answer_points": [
+      "列出2-3个备选方案并客观对比",
+      "提及量化指标（如训练时间、推理速度）",
+      "结合项目需求（实时性、硬件限制）做决策"
+    ],
+    "red_flags": [
+      "只说‘因为大家都在用’",
+      "没有对比，直接选定单一技术",
+      "无法说出所选技术的缺点或局限"
+    ],
+    "related_slots": [
+      "tech_stack_comparison",
+      "selection_criteria"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_021_686493",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155503+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "时间管理",
+      "里程碑",
+      "进度"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目周期多久？如何保证按时完成？",
+    "question": "项目的整体时间线是怎样的？有没有遇到过延期风险？如何应对？",
+    "followups": [
+      "关键里程碑有哪些？每个里程碑的产出是什么？",
+      "延期的主要原因是什么？如何调整计划？",
+      "从这次经历中你学到了哪些时间管理技巧？"
+    ],
+    "good_answer_points": [
+      "清晰描述时间规划与阶段目标",
+      "具体说明延期原因及补救措施",
+      "体现复盘和改进的能力"
+    ],
+    "red_flags": [
+      "没有时间概念，说‘做完了就行’",
+      "所有进度由别人推动，自己被动",
+      "延期后没有具体应对措施"
+    ],
+    "related_slots": [
+      "project_timeline",
+      "risk_management",
+      "milestone_plan"
+    ],
+    "difficulty": "低",
+    "id": "syn_项目概述_022_b29623",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155514+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "创新",
+      "改进",
+      "问题解决"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目中有没有你独创的做法？",
+    "question": "在这个项目中，你做过的最有创造性的尝试是什么？它带来了什么效果？",
+    "followups": [
+      "这个想法是如何产生的？灵感来源？",
+      "实施过程中遇到了哪些预期之外的困难？",
+      "如果现在改进，你会怎么做？"
+    ],
+    "good_answer_points": [
+      "具体描述创造性细节，而非空谈创新",
+      "说明效果时用定量或定性结果佐证",
+      "展现从失败或问题中学习的能力"
+    ],
+    "red_flags": [
+      "只说‘我们用了最新模型’，没有独创性",
+      "创造性尝试没有产生任何效果或改进",
+      "无法解释思路来源，显得被动"
+    ],
+    "related_slots": [
+      "innovation_case",
+      "problem_solving_creativity"
+    ],
+    "difficulty": "中",
+    "id": "syn_项目概述_023_7e855c",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155543+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "项目概述",
+    "tags": [
+      "文档",
+      "复现",
+      "开源"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S2_overview",
+    "trigger": "项目是否开源或有文档？",
+    "question": "你的项目是否有详细的文档或代码注释？别人能否复现你的结果？",
+    "followups": [
+      "文档中包含了哪些内容（环境配置、使用说明、实验结果）？",
+      "有没有人尝试复现并反馈问题？",
+      "你认为文档或代码有哪些可以改进的地方？"
+    ],
+    "good_answer_points": [
+      "提到文档化具体做法（如README、API文档）",
+      "说明复现所需的依赖和步骤",
+      "有复现成功的案例或反馈改进经历"
+    ],
+    "red_flags": [
+      "没有文档，完全依赖口头交流",
+      "代码无注释或结构混乱",
+      "无法复现结果，依赖特殊环境"
+    ],
+    "related_slots": [
+      "documentation_quality",
+      "reproducibility",
+      "code_organization"
+    ],
+    "difficulty": "低",
+    "id": "syn_项目概述_024_84ea8f",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:47:55.155555+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "数据预处理",
+      "特征工程",
+      "决策"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目中使用特定数据预处理方法",
+    "question": "你在数据预处理阶段做了哪些特征选择或特征工程？有没有尝试过其他方法？为什么最终选择了这个方案？",
+    "followups": [
+      "你如何评估特征的重要性？",
+      "有没有因为特征工程不当导致模型性能下降的情况？",
+      "如果数据量扩大100倍，你的特征工程流程会如何调整？"
+    ],
+    "good_answer_points": [
+      "具体描述使用的特征选择方法（如过滤法、包裹法、嵌入法等），并说明选择的理由。",
+      "能够比较不同特征工程方法的效果，并讨论权衡（如计算成本 vs 性能提升）。",
+      "提及数据预处理对模型鲁棒性的影响，例如处理缺失值、异常值、归一化等。"
+    ],
+    "red_flags": [
+      "回答笼统，只说“做了归一化”或“用了PCA”，没有细节。",
+      "没有考虑过其他替代方案，或者对特征工程的重要性认识不足。",
+      "无法解释特征工程对最终模型性能的具体影响。"
+    ],
+    "related_slots": [
+      "data_preprocessing_methods",
+      "feature_selection_details",
+      "model_tradeoffs"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_025_878a95",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639859+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "模型选择",
+      "评估指标",
+      "过拟合"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目中使用特定模型或算法",
+    "question": "你在这个项目中是如何选择模型的？有没有尝试过其他模型？最终模型的评估指标是什么？为什么选择这个指标？",
+    "followups": [
+      "你的模型在验证集和测试集上的表现分别是多少？有没有过拟合现象？",
+      "如果模型出现过拟合，你是怎么处理的？",
+      "如果业务场景要求更低的假阳性率，你会如何调整模型或评估指标？"
+    ],
+    "good_answer_points": [
+      "明确说明尝试过哪些模型（如LR、SVM、随机森林、神经网络等），并比较其优缺点。",
+      "能够解释选择的评估指标（如准确率、F1、AUC）与业务目标的关联。",
+      "讨论过拟合的检测方法（如学习曲线、交叉验证）和缓解策略（正则化、早停、数据增强等）。"
+    ],
+    "red_flags": [
+      "只说自己用了某个模型，没有尝试对比。",
+      "回答泛泛，例如“模型表现很好，准确率95%”但缺乏细节。",
+      "对评估指标的含义和局限性理解不清。"
+    ],
+    "related_slots": [
+      "model_selection_rationale",
+      "evaluation_metrics_used",
+      "overfitting_handling"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_026_eb88cc",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639890+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "超参数调优",
+      "交叉验证",
+      "实验设计"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目中涉及模型调参",
+    "question": "你是如何进行超参数调优的？使用了哪些工具或方法？调优过程中发现的最关键的参数是什么？",
+    "followups": [
+      "你用了网格搜索还是随机搜索？为什么？",
+      "调参过程中有没有遇到过参数组合导致模型性能骤降的情况？怎么排查的？",
+      "如果计算资源有限，你会如何设计调优策略？"
+    ],
+    "good_answer_points": [
+      "具体描述使用的调参方法（grid search, random search, Bayesian optimization等）和工具（scikit-learn, Optuna, Hyperopt等）。",
+      "能够识别对模型性能影响最大的超参数（如学习率、树深度、正则化系数），并解释原因。",
+      "讨论调参过程中如何平衡计算成本和性能提升，以及如何利用交叉验证防止过拟合。"
+    ],
+    "red_flags": [
+      "没有使用系统调参，只是手动试了几次。",
+      "无法指出哪个参数最重要，或回答“所有参数都重要”没有重点。",
+      "缺乏对调参风险（如过拟合、计算爆炸）的认识。"
+    ],
+    "related_slots": [
+      "hyperparameter_tuning_method",
+      "key_parameters_identified",
+      "computational_tradeoffs"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_027_65506e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639914+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "损失函数",
+      "优化器",
+      "训练策略"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目涉及深度学习模型训练",
+    "question": "你在训练深度学习模型时，损失函数和优化器是如何选择的？有没有尝试过其他组合？",
+    "followups": [
+      "你的损失函数是否能够很好地反映业务目标？有没有自定义损失函数？",
+      "训练过程中学习率是如何调整的？有没有使用学习率调度器？",
+      "遇到过梯度消失或爆炸吗？怎么解决的？"
+    ],
+    "good_answer_points": [
+      "解释选择的损失函数（如交叉熵、均方误差）与任务类型（分类、回归）的匹配性。",
+      "讨论优化器（SGD, Adam, RMSprop等）的特点和选择理由，以及学习率调度策略。",
+      "提及处理梯度问题的具体方法（如梯度裁剪、Batch Normalization、残差连接）。"
+    ],
+    "red_flags": [
+      "只会说“用了Adam”，无法解释为什么选择Adam而不是SGD。",
+      "对损失函数与业务目标的关系理解不深。",
+      "没有遇到过常见训练问题，或无法描述解决过程。"
+    ],
+    "related_slots": [
+      "loss_function_choice",
+      "optimizer_details",
+      "training_stability"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_028_44aa09",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639928+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "数据不平衡",
+      "采样",
+      "代价敏感"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目数据存在不平衡问题",
+    "question": "你的数据是否存在类别不平衡问题？你是如何处理的？效果如何？",
+    "followups": [
+      "你尝试过过采样、欠采样还是生成合成数据？为什么选择这种方法？",
+      "处理不平衡后，模型在少数类上的性能提升了多少？",
+      "有没有考虑过使用代价敏感学习或集成方法？"
+    ],
+    "good_answer_points": [
+      "明确描述数据不平衡的比例和影响。",
+      "具体说明尝试过的处理方法（如SMOTE、随机过采样、欠采样、类别权重），并比较效果。",
+      "能够评估处理前后模型在少数类上的性能变化（如召回率、F1），并讨论可能引入的偏差。"
+    ],
+    "red_flags": [
+      "没有意识到数据不平衡问题，或直接忽略。",
+      "只用了简单过采样，没有评估对模型泛化能力的影响。",
+      "无法量化处理效果，或回答“提升了很多”但无具体数字。"
+    ],
+    "related_slots": [
+      "imbalance_handling",
+      "sampling_technique",
+      "minority_class_performance"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_029_a9a66a",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639941+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "可视化",
+      "可解释性",
+      "结果分析"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目结果分析阶段",
+    "question": "你是如何分析和可视化模型结果的？有没有使用可解释性工具来理解模型决策？",
+    "followups": [
+      "你发现了哪些有趣的模式或异常？如何验证它们的可靠性？",
+      "可解释性结果是否帮助改进了模型？如何改进的？",
+      "对于非技术背景的同事，你是如何展示模型结果的？"
+    ],
+    "good_answer_points": [
+      "具体描述使用的可视化和可解释性工具（如混淆矩阵、ROC曲线、SHAP、LIME、特征重要性等）。",
+      "能够从结果中发现具体洞察，并讨论如何验证这些洞察。",
+      "说明可解释性如何指导模型改进（如特征工程、错误分析）。"
+    ],
+    "red_flags": [
+      "只做了简单的准确率报告，没有深入分析。",
+      "对可解释性工具有误用或理解错误。",
+      "无法举例说明从分析中得到的实际洞见。"
+    ],
+    "related_slots": [
+      "visualization_tools",
+      "interpretability_insights",
+      "stakeholder_communication"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_030_41586e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639955+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "模型选择",
+      "性能对比",
+      "trade-off"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "候选人提及使用了某种模型/方法",
+    "question": "你项目中用到的这个模型，在实际部署时有没有遇到推理延迟或资源瓶颈？你是如何权衡精度和速度的？",
+    "followups": [
+      "有没有尝试过轻量化或蒸馏方案？结果如何？",
+      "如果让你重新设计，你会选择不同的backbone吗？为什么？",
+      "你做过profile吗？最耗时的部分是哪里？"
+    ],
+    "good_answer_points": [
+      "给出具体的延迟、内存等量化数据",
+      "说明采取的具体优化措施（如量化、剪枝、蒸馏）及其效果",
+      "能分析不同方案的trade-off，体现工程思维"
+    ],
+    "red_flags": [
+      "回答模糊，没有具体数字或实验对比",
+      "完全没考虑过部署性能，或声称模型完美无缺",
+      "对模型计算量、参数量毫无概念"
+    ],
+    "related_slots": [
+      "project_model_deployment",
+      "project_performance_optimization"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_031_2131dd",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639968+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "数据处理",
+      "数据清洗",
+      "噪声处理"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目涉及数据预处理或清洗",
+    "question": "你的训练数据中噪声标签或异常值占比多少？你用了什么方法处理，为什么？",
+    "followups": [
+      "如果噪声比例更高，你的方法还work吗？",
+      "有没有尝试过主动学习或半监督来减少人工标注？",
+      "你如何评估清洗后的数据质量？"
+    ],
+    "good_answer_points": [
+      "指出具体噪声比例并说明识别方法（如统计、聚类、模型预测）",
+      "解释选择特定清洗策略（如剔除、重标、加权）的原因",
+      "展示对数据影响模型性能的深入理解"
+    ],
+    "red_flags": [
+      "声称数据完美无噪声，或未做任何处理",
+      "回答笼统，缺乏具体技术细节",
+      "对噪声类型和影响缺乏认识"
+    ],
+    "related_slots": [
+      "project_data_quality",
+      "project_data_pipeline"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_032_366325",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639979+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "基准测试",
+      "对比实验",
+      "公平性"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "候选人展示了实验结果",
+    "question": "你报告中F1提高了5%，但这个提升在统计上是否显著？你的对比实验是如何控制变量、消除随机性的？",
+    "followups": [
+      "有没有做多次重复实验并报告方差？",
+      "你的baseline是自己复现的还是来自公开结果？复现时有什么差异？",
+      "你用了什么假设检验方法？"
+    ],
+    "good_answer_points": [
+      "提到多次重复实验、报告均值±标准差",
+      "使用统计显著性检验（如t检验，p值）",
+      "说明对baseline的复现设置和超参数调整"
+    ],
+    "red_flags": [
+      "只报告单次结果，声称提升显著但无统计证据",
+      "未与强baseline对比，或对比不公平（如不同数据划分）",
+      "不清楚如何控制随机种子、数据划分等变量"
+    ],
+    "related_slots": [
+      "project_evaluation_methodology",
+      "project_statistical_rigor"
+    ],
+    "difficulty": "高",
+    "id": "syn_技术深挖_033_1f001b",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.639990+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "特征工程",
+      "特征选择",
+      "可解释性"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目包含特征工程环节",
+    "question": "你构建的哪些特征对模型贡献最大？你是如何验证它们的重要性的？",
+    "followups": [
+      "有没有尝试过自动特征生成或特征交叉？",
+      "如果去除某个特征，性能变化多少？",
+      "你的特征与标签是否存在leakage？如何排查？"
+    ],
+    "good_answer_points": [
+      "使用多种方法（如SHAP、feature importance、ablation）交叉验证",
+      "给出具体特征及其贡献度量化结果",
+      "讨论特征的可解释性和业务意义"
+    ],
+    "red_flags": [
+      "无法说出重要的具体特征",
+      "仅靠直觉而非实验说明特征重要性",
+      "未考虑feature leakage或数据泄露风险"
+    ],
+    "related_slots": [
+      "project_feature_engineering",
+      "project_model_interpretability"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_034_0b4230",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.640003+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "模型调优",
+      "超参数搜索",
+      "自动化"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "候选人提到调参或优化过程",
+    "question": "你在超参数搜索中使用了什么策略？搜索空间如何设计？最终的参数选择有什么依据？",
+    "followups": [
+      "如果搜索空间更大，你的方法计算资源够吗？",
+      "有没有使用贝叶斯优化或进化算法？效果如何？",
+      "调参过程中遇到过哪些过拟合迹象？如何应对？"
+    ],
+    "good_answer_points": [
+      "说明搜索算法（网格、随机、贝叶斯等）及理由",
+      "展示对搜索效率和效果平衡的思考",
+      "提供实际调参案例和最终参数选择的合理性"
+    ],
+    "red_flags": [
+      "声称曼ually调参但无系统方法",
+      "搜索空间设计随意，没有分析",
+      "忽视过拟合或仅依赖单一指标"
+    ],
+    "related_slots": [
+      "project_hyperparameter_tuning",
+      "project_experiment_tracking"
+    ],
+    "difficulty": "中",
+    "id": "syn_技术深挖_035_a68b13",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.640014+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "技术深挖",
+    "tags": [
+      "模型集成",
+      "集成学习",
+      "多样性"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S3_technical",
+    "trigger": "项目使用模型集成方法",
+    "question": "你集成了多个模型，如何保证它们之间的多样性？集成后的模型是否带来额外的部署复杂性？",
+    "followups": [
+      "有没有尝试过stacking或blending？与bagging相比效果如何？",
+      "集成后推理时间是单模型的几倍？如何优化？",
+      "如果去掉其中一个弱模型，集成性能下降多少？"
+    ],
+    "good_answer_points": [
+      "讨论多样性来源（不同架构、数据子集、随机种子等）",
+      "提供集成与单一模型的性能对比（准确率、推理时间）",
+      "针对部署复杂性给出具体解决方案（如模型压缩、并行推理）"
+    ],
+    "red_flags": [
+      "未考虑多样性，简单相同模型重复集成",
+      "对集成带来的计算开销缺乏衡量",
+      "无法解释集成为何有效（如偏差-方差权衡）"
+    ],
+    "related_slots": [
+      "project_ensemble_methods",
+      "project_deployment_complexity"
+    ],
+    "difficulty": "高",
+    "id": "syn_技术深挖_036_374f5a",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:48:58.640024+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "消融实验",
+      "baseline对比"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当学生提到使用多个模块或改进时",
+    "question": "你的模型相比 baseline 的改进来自哪个模块？请设计一个消融实验来证明每个模块的贡献，并告诉我实际结果如何？",
+    "followups": [
+      "如果去掉某个模块后性能反而提升，你会怎么解释？",
+      "你如何确保消融实验的公平性？比如超参数是否对齐？"
+    ],
+    "good_answer_points": [
+      "能清晰回答每个模块的贡献度，并给出消融实验的具体数值",
+      "提到控制变量法，确保超参数、训练轮数等保持一致"
+    ],
+    "red_flags": [
+      "声称所有模块都不可或缺但无法提供消融实验数据",
+      "消融实验设计有明显漏洞，比如仅改变一个变量但其他设置不一致"
+    ],
+    "related_slots": [
+      "ablation_study",
+      "module_contribution",
+      "baseline_choice"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_037_8c437e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029731+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "错误分析",
+      "case study"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当学生提到模型在某些场景下表现不佳时",
+    "question": "你的模型在验证集/测试集上具体哪些样本预测错了？请举出2-3个典型错误案例，并分析错误原因。",
+    "followups": [
+      "这些错误案例是否有共同特征？比如数据类型、类别分布？",
+      "你尝试过哪些方法去修复这些错误？效果如何？"
+    ],
+    "good_answer_points": [
+      "能具体描述错误案例的输入、输出、真实标签",
+      "能总结错误模式，比如长尾问题、噪声数据等，并提出改进策略"
+    ],
+    "red_flags": [
+      "只笼统说“错误率不高”但不展示具体错误",
+      "错误分析停留在表面，如“数据不好”，没有深入思考"
+    ],
+    "related_slots": [
+      "error_analysis",
+      "failure_modes",
+      "case_study"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_038_4db613",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029756+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "鲁棒性",
+      "对抗测试"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当项目涉及分类或回归任务时",
+    "question": "你的模型在真实场景中可能会遇到哪些分布外数据？你如何测试模型的鲁棒性？请具体说明。",
+    "followups": [
+      "你测试过对输入噪声的鲁棒性吗？比如添加高斯噪声、遮挡？",
+      "如果模型在对抗样本下表现很差，你会怎么改进？"
+    ],
+    "good_answer_points": [
+      "能列举出多种分布外场景，如光照、视角、背景变化",
+      "设计过针对性的鲁棒性测试实验，如对抗攻击、数据损坏"
+    ],
+    "red_flags": [
+      "认为模型在测试集上表现好就等于鲁棒",
+      "没有考虑过任何分布外或对抗场景"
+    ],
+    "related_slots": [
+      "robustness_test",
+      "OOD",
+      "adversarial_attack"
+    ],
+    "difficulty": "高",
+    "id": "syn_实验验证_039_f4d44f",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029770+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "超参数",
+      "敏感性分析"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当模型有多个超参数或随机种子时",
+    "question": "你的模型对超参数敏感吗？比如学习率、batch size 等。你做过敏感性分析吗？结果如何？",
+    "followups": [
+      "如果你用不同的随机种子跑多次，结果方差大吗？",
+      "你如何选择最终的超参数组合？只凭验证集最优吗？"
+    ],
+    "good_answer_points": [
+      "展示过超参数扫描结果，比如学习率范围及对应性能曲线",
+      "提到多次重复实验取平均值和标准差以评估稳定性"
+    ],
+    "red_flags": [
+      "只用一个超参数组合就跑出了结果，未做调参",
+      "声称模型对超参数不敏感但未提供证据"
+    ],
+    "related_slots": [
+      "hyperparameter_sensitivity",
+      "reproducibility",
+      "random_seed"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_040_b628a2",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029782+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "效率",
+      "计算资源"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当项目涉及部署或实时性要求时",
+    "question": "你的模型在推理速度和参数量方面表现如何？是否与更轻量的模型做过对比？比如 MobileNet 或蒸馏模型。",
+    "followups": [
+      "你衡量过 FLOPs 或推理延迟吗？在什么硬件上测试的？",
+      "如果要求模型在边缘设备上运行，你会如何优化？"
+    ],
+    "good_answer_points": [
+      "给出具体的推理时间、参数量、FLOPs 等指标",
+      "提出过模型压缩、剪枝、量化等优化方案"
+    ],
+    "red_flags": [
+      "只强调准确率，完全不关心效率",
+      "没有实际测量过速度，只说“感觉很快”"
+    ],
+    "related_slots": [
+      "inference_speed",
+      "model_efficiency",
+      "deployment"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_041_4a001c",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029794+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "可解释性",
+      "可视化"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "当模型是深度学习黑盒时",
+    "question": "你的模型是如何决策的？你做过可解释性分析吗？比如使用 Grad-CAM、SHAP 等可视化特征重要性。",
+    "followups": [
+      "可视化结果是否符合你的预期？有没有发现模型学到了奇怪的伪影？",
+      "如果可视化显示模型依赖非关键特征，你会怎么处理？"
+    ],
+    "good_answer_points": [
+      "使用过至少一种可解释性方法，并展示具体热力图或特征排序",
+      "能结合可视化结果分析模型行为，发现潜在问题"
+    ],
+    "red_flags": [
+      "认为模型不需要可解释性，只关心结果",
+      "可视化结果明显有问题但忽视或未察觉"
+    ],
+    "related_slots": [
+      "interpretability",
+      "visualization",
+      "feature_importance"
+    ],
+    "difficulty": "高",
+    "id": "syn_实验验证_042_198e77",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029805+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "消融实验",
+      "ablation",
+      "组件贡献"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "追问项目中的消融实验",
+    "question": "你的项目里做了哪些消融实验来验证每个模块的必要性？其中哪个模块的去除对性能影响最大？",
+    "followups": [
+      "如果去掉那个模块后性能下降不多，你还会保留它吗？",
+      "你有没有尝试过更极端的消融，比如同时去掉两个模块？结果如何？",
+      "你的消融实验是否考虑了计算开销的公平比较？"
+    ],
+    "good_answer_points": [
+      "具体说明消融了哪些组件，并给出量化结果（如准确率下降X%）",
+      "能分析每个模块的贡献，并解释为什么某个模块关键"
+    ],
+    "red_flags": [
+      "声称做了消融但说不清具体组件和结果",
+      "只提了消融实验的名称，没有量化分析"
+    ],
+    "related_slots": [
+      "ablation_study",
+      "module_importance",
+      "performance_degradation"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_043_d9f7b7",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029816+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "鲁棒性",
+      "泛化能力",
+      "跨域测试"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "询问模型鲁棒性验证",
+    "question": "除了标准测试集，你还用了哪些方式来验证模型的鲁棒性或泛化能力？比如在噪声、分布外数据或不同场景下的表现？",
+    "followups": [
+      "如果模型在分布外数据上表现差，你觉得是什么原因？",
+      "你有没有针对模型脆弱的地方进行改进？",
+      "你对比过其他鲁棒性方法吗？"
+    ],
+    "good_answer_points": [
+      "列出具体的鲁棒性测试（如添加对抗噪声、光照变化、跨数据集测试）并给出结果",
+      "能分析鲁棒性不足的原因，并提出改进思路"
+    ],
+    "red_flags": [
+      "只提了标准测试集，没有额外鲁棒性验证",
+      "当被问及失败情况时回避或找借口"
+    ],
+    "related_slots": [
+      "robustness_test",
+      "out_of_distribution",
+      "generalization"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_044_700ba7",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029827+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "评估指标",
+      "metric选择",
+      "多指标"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "追问评估指标的选择",
+    "question": "你用了哪些评估指标？为什么选择这些而不是其他？有没有发现某个指标被优化后另一个指标反而变差？",
+    "followups": [
+      "如果准确率和召回率有冲突，你如何权衡？",
+      "你使用的指标是否存在局限性？比如在类别不平衡下是否公平？",
+      "你有没有考虑过更细粒度的指标，比如针对困难样本的表现？"
+    ],
+    "good_answer_points": [
+      "解释每个指标的含义和选择理由，并展示多指标之间的权衡",
+      "能识别指标局限性并讨论补充指标"
+    ],
+    "red_flags": [
+      "只列出指标名称，没有解释为什么选它们",
+      "忽视指标之间的冲突或局限性"
+    ],
+    "related_slots": [
+      "evaluation_metrics",
+      "metric_tradeoff",
+      "class_imbalance"
+    ],
+    "difficulty": "低",
+    "id": "syn_实验验证_045_b4f60c",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029839+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "baseline",
+      "对比实验",
+      "公平比较"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "考察实验规范性",
+    "question": "你在对比实验中，如何保证与baseline的公平性？比如超参数调优、训练资源、随机种子等方面是否一致？",
+    "followups": [
+      "如果baseline的结果比你的差，你是否尝试过仔细调它的超参数？",
+      "你的实验是否有多次运行取平均？方差大吗？",
+      "你有没有考虑过对baseline使用同样的数据增强？"
+    ],
+    "good_answer_points": [
+      "描述保证公平性的具体措施，如固定种子、网格搜索baseline超参、多次实验",
+      "展示实验的可重复性，并讨论方差"
+    ],
+    "red_flags": [
+      "声称比baseline好但未说明比较条件",
+      "回避超参数调优问题，或不曾为baseline调参"
+    ],
+    "related_slots": [
+      "fair_comparison",
+      "hyperparameter_tuning",
+      "reproducibility"
+    ],
+    "difficulty": "高",
+    "id": "syn_实验验证_046_4126d3",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029851+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "错误分析",
+      "failure case",
+      "可视化"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "追问错误分析细节",
+    "question": "你的模型在哪些类型的样本上表现最差？你通过什么方法（如可视化、聚类）来归纳错误模式？这些错误是否提示了数据或模型的根本问题？",
+    "followups": [
+      "有没有尝试针对这些错误类型进行数据增强或模型改进？",
+      "错误分析是否指导了你的下一步工作？",
+      "如果错误分布不均匀，比如某个类别错误很多，你如何处理？"
+    ],
+    "good_answer_points": [
+      "给出具体的错误类别（如模糊图像、罕见场景）并附上统计或可视化",
+      "能从中提炼出模型或数据的短板，并提出改进方向"
+    ],
+    "red_flags": [
+      "只泛泛说“错误很少”或“没分析过”",
+      "错误分析停留在表面，没有深入原因"
+    ],
+    "related_slots": [
+      "error_analysis",
+      "failure_mode",
+      "data_bias"
+    ],
+    "difficulty": "中",
+    "id": "syn_实验验证_047_cc1ba0",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029862+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "实验验证",
+    "tags": [
+      "可解释性",
+      "模型可视化",
+      "注意力分析"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S4_validation",
+    "trigger": "考察实验结果的可解释性",
+    "question": "除了最终的指标，你是否通过可视化或其他可解释性方法（如Grad-CAM、SHAP、特征重要性）来验证模型学到了合理的特征？有没有发现模型关注了不该关注的地方？",
+    "followups": [
+      "如果模型关注了背景或噪声，你怎么看？",
+      "这些可视化结果是否让你改进了模型结构？",
+      "你如何量化解释结果的可信度？"
+    ],
+    "good_answer_points": [
+      "展示具体的可视化图例，并解释模型关注区域与人类认知是否一致",
+      "能利用可视化发现模型问题，并据此调整"
+    ],
+    "red_flags": [
+      "声称做了可视化但无法展示具体结果或分析",
+      "对模型关注错误区域不以为然或认为不重要"
+    ],
+    "related_slots": [
+      "explainability",
+      "visualization",
+      "model_interpretation"
+    ],
+    "difficulty": "高",
+    "id": "syn_实验验证_048_a5d963",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:49:50.029873+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "模型失败",
+      "异常输入"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "让用户回顾项目中的失败案例",
+    "question": "在项目测试或部署过程中，有没有遇到过模型在特定子集上表现极差（例如某些类别的准确率远低于平均）的情况？你是如何发现并分析这个问题的？",
+    "followups": [
+      "这个表现差的子集有什么共同特征？",
+      "你尝试了哪些方法去改善？效果如何？",
+      "如果现在重新设计，你会如何提前规避这个问题？"
+    ],
+    "good_answer_points": [
+      "能明确指出具体失败的子集或场景，并分析其数据分布、特征或标注问题。",
+      "展示系统的排查过程，如错误分析、混淆矩阵、分维度评估。",
+      "提及尝试过的改进措施（如数据增强、重采样、模型结构调整）并诚实说明效果。"
+    ],
+    "red_flags": [
+      "声称模型在所有情况下表现都好，没有明显失败案例。",
+      "对失败原因缺乏深入分析，仅归因于数据不足。",
+      "没有尝试任何改进或没有记录改进过程。"
+    ],
+    "related_slots": [
+      "failure_case",
+      "model_weakness",
+      "data_bias",
+      "error_analysis"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_049_476a64",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418330+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "过拟合",
+      "泛化能力"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "探讨模型泛化能力的局限性",
+    "question": "你的模型在训练集上表现很好，但在验证集或真实场景中效果有明显的下降吗？能具体讲讲这种泛化差距，以及你为了弥合这个差距做了哪些努力？",
+    "followups": [
+      "你是如何判断是过拟合还是其他问题（如数据分布不一致）？",
+      "你尝试了哪些正则化方法或数据增强？效果如何？",
+      "如果让你重新做，你会如何设计训练和验证策略？"
+    ],
+    "good_answer_points": [
+      "能用具体数字或曲线说明训练和验证性能的差距。",
+      "分析过拟合的成因（如模型复杂度、数据噪声、样本量）。",
+      "展示尝试过的正则化、早停、Dropout、数据增强等措施及效果评估。"
+    ],
+    "red_flags": [
+      "否认存在泛化问题或声称训练验证没有差距。",
+      "只提到一种方法且没有具体效果分析。",
+      "对过拟合的概念理解不清晰或与欠拟合混淆。"
+    ],
+    "related_slots": [
+      "overfitting",
+      "generalization_gap",
+      "regularization",
+      "validation_strategy"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_050_b2b3e7",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418356+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "评估指标",
+      "偏见"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "暴露项目中评估指标选择的缺陷",
+    "question": "在项目评估过程中，你有没有发现某个常用的评估指标（如准确率、F1分数）掩盖了模型在某些重要方面的不足？你是怎么发现这个问题的？",
+    "followups": [
+      "你后来采用了哪些替代指标或额外分析方法？",
+      "这个发现对模型改进有什么具体影响？",
+      "是否考虑过公平性、稳健性等非标准指标？"
+    ],
+    "good_answer_points": [
+      "能举例说明原指标如何掩盖问题（如类别不平衡时准确率虚高）。",
+      "提出更合适的指标（如召回率、Precision-Recall曲线、AUC-ROC、混淆矩阵等）。",
+      "展示对指标选择背后意义的理解，并说明如何结合业务需求。"
+    ],
+    "red_flags": [
+      "只使用单一指标且无法说出其局限。",
+      "对模型问题的分析流于表面，没有实质性改进。",
+      "认为指标完全没问题，不承认可能存在的偏见。"
+    ],
+    "related_slots": [
+      "evaluation_metrics",
+      "bias",
+      "class_imbalance",
+      "failure_detection"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_051_bf2a72",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418370+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "资源限制",
+      "工程妥协"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "探讨在资源或时间限制下做出的妥协",
+    "question": "在项目开发过程中，由于计算资源、时间或数据限制，你不得不做出哪些妥协？这些妥协最终对模型性能或可靠性产生了什么影响？",
+    "followups": [
+      "你当时是如何权衡不同选择的？",
+      "如果现在有无限资源，你会优先改进哪一点？",
+      "这些妥协是否导致了某些边缘情况或失败模式？"
+    ],
+    "good_answer_points": [
+      "能具体描述资源限制（如GPU内存、训练时间、标注成本）并合理说明妥协方案。",
+      "坦诚妥协带来的负面影响，并提供量化分析（如精度损失、延迟增加）。",
+      "展示对工程取舍的思考，包括优先级排序和后续迭代计划。"
+    ],
+    "red_flags": [
+      "声称没有任何妥协或所有决定都是最优的。",
+      "无法说明妥协的具体后果，回答空洞。",
+      "将失败完全归咎于外部资源而不反思自身决策。"
+    ],
+    "related_slots": [
+      "resource_constraint",
+      "trade_off",
+      "engineering_compromise",
+      "failure_impact"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_052_03d538",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418383+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "baseline",
+      "对比实验"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "检查用户对baseline和对比实验的理解",
+    "question": "在项目初期，你选择的baseline模型是什么？最终你的模型相对baseline提升了多少？有没有哪种baseline或者对比方法出乎意料地表现更好？",
+    "followups": [
+      "为什么选择那个baseline？是否考虑了更简单的启发式方法？",
+      "如果某个baseline表现更好，你分析了原因吗？",
+      "对比实验中是否控制了所有变量？有没有潜在的公平性问题？"
+    ],
+    "good_answer_points": [
+      "清晰说明baseline的选择理由和最终性能对比（含具体数字）。",
+      "诚实承认某些baseline或简单方法出乎意料地好，并给出分析。",
+      "展示对比实验的严谨性，如控制变量、多次重复、统计显著性检验。"
+    ],
+    "red_flags": [
+      "没有对比实验或只与一个baseline比较且提升巨大。",
+      "对baseline的性能差异没有深入分析。",
+      "回避讨论baseline表现更好的可能性。"
+    ],
+    "related_slots": [
+      "baseline",
+      "comparison_experiment",
+      "relative_improvement",
+      "failure_to_beat_baseline"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_053_a710d8",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418398+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "失败反思",
+      "数据泄露",
+      "实验错误"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "暴露项目中的实验设计漏洞",
+    "question": "在项目过程中，你有没有发现过数据泄露（data leakage）或实验设置上的错误，导致结果虚高？你是如何发现并纠正的？",
+    "followups": [
+      "具体是哪种泄露（时间泄露、特征泄露等）？",
+      "纠正后模型性能下降了多少？",
+      "这次经历如何改变了你后续实验设计的习惯？"
+    ],
+    "good_answer_points": [
+      "能准确描述数据泄露的类型和发现过程（如通过可视化、交叉验证、逻辑检查）。",
+      "量化泄露对结果的影响，并展示修复后的性能。",
+      "提到后续采用的预防措施（如严格分离训练/测试、Pipeline检查）。"
+    ],
+    "red_flags": [
+      "声称从未有过数据泄露或实验错误。",
+      "对泄露概念理解模糊，无法具体说明。",
+      "没有从错误中吸取教训，缺乏改进措施。"
+    ],
+    "related_slots": [
+      "data_leakage",
+      "experimental_error",
+      "reproducibility",
+      "integrity"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_054_d757e1",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418418+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "数据泄露",
+      "过拟合"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "项目失败反思",
+    "question": "你项目中是否有过模型在测试集上表现很好，但在真实场景中崩盘的情况？具体是哪里出了问题？",
+    "followups": [
+      "你是怎么发现这个问题的？",
+      "事后分析原因是什么？",
+      "你做了哪些改进？"
+    ],
+    "good_answer_points": [
+      "承认存在过拟合或数据分布漂移",
+      "具体描述检测过程和分析方法",
+      "提出了实际改进措施并验证效果"
+    ],
+    "red_flags": [
+      "否认或回避问题",
+      "归咎于外部因素而不反思自身"
+    ],
+    "related_slots": [
+      "项目失败案例",
+      "模型泛化能力",
+      "数据分布分析"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_055_8b0337",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418438+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "数据采集",
+      "标注质量"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "数据问题反思",
+    "question": "项目中哪一类数据让你最头疼？是标注不一致、样本不平衡还是数据量不够？你是怎么处理的？",
+    "followups": [
+      "标注不一致的具体比例？",
+      "解决后效果提升了多少？",
+      "有没有因为数据问题导致项目方向调整？"
+    ],
+    "good_answer_points": [
+      "明确指出具体数据问题类型",
+      "量化描述问题严重性",
+      "给出有效解决方案且能评估效果"
+    ],
+    "red_flags": [
+      "说数据都很好没问题",
+      "解决方案模糊或未验证"
+    ],
+    "related_slots": [
+      "数据质量问题",
+      "数据增强方法",
+      "标注流程"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_056_112263",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418455+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "时间规划",
+      "项目管理"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "项目延期或失败",
+    "question": "这个项目有没有因为某个决策失误导致进度严重滞后甚至重做？具体是什么决策？",
+    "followups": [
+      "当时为什么做那个决策？",
+      "如果现在重新选择，你会怎么做？",
+      "这个教训如何影响你后续的项目管理？"
+    ],
+    "good_answer_points": [
+      "坦诚描述决策失误过程",
+      "反思了根本原因（如信息不足、过度优化等）",
+      "提出了具体改进措施并应用到其他项目"
+    ],
+    "red_flags": [
+      "推卸责任或否认失误",
+      "回答笼统无细节"
+    ],
+    "related_slots": [
+      "项目决策失误",
+      "时间管理",
+      "风险控制"
+    ],
+    "difficulty": "低",
+    "id": "syn_失败反思_057_0ee741",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418472+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "基线选择",
+      "对比实验"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "实验设计缺陷",
+    "question": "你在对比实验中是否遇到过基线选择不合理导致结论有偏差的情况？能举个例子吗？",
+    "followups": [
+      "你后来怎么修正的？",
+      "这个偏差影响了多少指标？",
+      "你如何确保基线选择公正？"
+    ],
+    "good_answer_points": [
+      "承认基线选择不当",
+      "具体描述偏差影响",
+      "提出合理的基线选取原则"
+    ],
+    "red_flags": [
+      "声称所有基线都合理",
+      "未意识到偏差问题"
+    ],
+    "related_slots": [
+      "基线选择",
+      "实验设计",
+      "结论可靠性"
+    ],
+    "difficulty": "中",
+    "id": "syn_失败反思_058_ccfc8e",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418496+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "资源限制",
+      "硬件瓶颈"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "硬件资源不足",
+    "question": "有没有因为硬件资源限制导致你不得不放弃某个更好的模型或方法？具体情况是怎样的？",
+    "followups": [
+      "你是如何妥协的？",
+      "有没有尝试替代方案？",
+      "如果资源充足，你会改变哪些设计？"
+    ],
+    "good_answer_points": [
+      "具体说明资源瓶颈（内存、算力、存储等）",
+      "描述妥协策略及影响",
+      "能提出理想方案"
+    ],
+    "red_flags": [
+      "抱怨资源不足而不反思如何优化",
+      "未尝试任何替代方案"
+    ],
+    "related_slots": [
+      "硬件资源",
+      "模型压缩",
+      "分布式训练"
+    ],
+    "difficulty": "低",
+    "id": "syn_失败反思_059_07878a",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418515+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "失败反思",
+    "tags": [
+      "合作沟通",
+      "团队协作"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S5_reflection",
+    "trigger": "团队协作失败",
+    "question": "项目中是否出现过因为沟通不畅导致接口不匹配或重复劳动的情况？具体是哪方面？",
+    "followups": [
+      "你当时怎么解决的？",
+      "现在会用什么方法避免？",
+      "这个经历如何改变你的协作习惯？"
+    ],
+    "good_answer_points": [
+      "具体描述沟通失效场景",
+      "提出改进措施（如定期同步、文档规范等）",
+      "体现了反思和成长"
+    ],
+    "red_flags": [
+      "指责他人而不自我反思",
+      "回答空洞无实例"
+    ],
+    "related_slots": [
+      "团队协作",
+      "沟通机制",
+      "代码合并"
+    ],
+    "difficulty": "低",
+    "id": "syn_失败反思_060_1dfc7a",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:51:05.418533+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "研究方向匹配",
+      "技能迁移"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "用户提到项目与目标方向相关",
+    "question": "你在这个项目中用到的技术/方法，如果应用到我们实验室/团队目前的主攻方向上，你认为哪个最可能直接迁移？哪个最可能需要大幅调整？请具体举例。",
+    "followups": [
+      "请具体说明迁移时需要调整哪些参数或结构？",
+      "你预计调整后的性能会如何变化？",
+      "如果让你在1周内完成这个迁移，你会怎么规划？"
+    ],
+    "good_answer_points": [
+      "能清晰指出项目中可迁移的核心技术（如模型架构、数据处理流程）",
+      "能客观分析需要调整的部分（如数据分布、评估指标）",
+      "有具体的调整方案和预期效果"
+    ],
+    "red_flags": [
+      "笼统回答“都可以迁移”或“都不行”，缺乏具体分析",
+      "对目标方向的技术细节不了解",
+      "没有考虑数据、硬件等实际条件的差异"
+    ],
+    "related_slots": [
+      "project_tech_stack",
+      "target_direction_knowledge",
+      "adaptation_ability"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_061_b623d3",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.954979+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "技术深度",
+      "方法论差异"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "用户介绍项目技术方案",
+    "question": "你这个项目的核心方法和我们实验室主流方法的核心差异是什么？你能说出至少两个你项目中可能优于我们方法的地方，以及两个可能不足的地方吗？",
+    "followups": [
+      "你如何证明这些差异确实存在？有进行对比实验吗？",
+      "如果你需要将你的方法改进以适配我们实验室的场景，你会优先改进哪个不足？"
+    ],
+    "good_answer_points": [
+      "准确概括双方方法的核心假设或实现",
+      "能理性分析优劣，不盲目推崇自己的方法",
+      "提出有针对性的改进思路，且符合实验室方向"
+    ],
+    "red_flags": [
+      "对实验室方法一知半解（如只看过摘要）",
+      "只夸自己方法，回避不足",
+      "提出的改进方案太泛或不可行"
+    ],
+    "related_slots": [
+      "project_method",
+      "lab_method_knowledge",
+      "critical_thinking"
+    ],
+    "difficulty": "高",
+    "id": "syn_匹配与总结_062_63096b",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955005+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "任务拆解",
+      "时间规划"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "面试官询问入职后工作计划",
+    "question": "假设你明天入职，需要将你项目中的某个模块（如数据预处理、模型推理优化）迁移到我们现有产品线上，请列出从第1天到第30天的详细任务清单，并说明每个阶段的交付物。",
+    "followups": [
+      "你在第1周会遇到什么技术阻碍？如何解决？",
+      "如果迁移过程中发现现有代码与你的项目设计不兼容，你会如何处理？"
+    ],
+    "good_answer_points": [
+      "任务拆解具体，有时间节点和可量化的交付物",
+      "考虑到环境配置、数据对接、测试验证等实际细节",
+      "对可能的风险有预案"
+    ],
+    "red_flags": [
+      "任务安排过于理想化，忽略调试和集成时间",
+      "没有提及与团队协作或代码审查",
+      "对现有产品线一无所知"
+    ],
+    "related_slots": [
+      "project_module",
+      "onboarding_plan",
+      "risk_management"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_063_25cdf0",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955024+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "结果对比",
+      "评估标准"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "用户展示项目结果",
+    "question": "你项目的最终指标（如准确率、推理速度）与目标实验室/公司公开的最佳结果相比如何？如果你尝试复现对方的方法，你觉得自己能复现到什么程度？",
+    "followups": [
+      "如果对方的指标明显优于你，你觉得主要原因是什么？",
+      "你如何验证你的复现结果与对方报告的一致性？"
+    ],
+    "good_answer_points": [
+      "诚实对比，客观分析差异原因（如数据、硬件、调参）",
+      "能提出具体的复现策略和验证方法",
+      "对差距有合理的改进思路"
+    ],
+    "red_flags": [
+      "编造或夸大项目指标",
+      "完全否定对方结果或完全不承认自身不足",
+      "无法说出复现的关键步骤"
+    ],
+    "related_slots": [
+      "project_metrics",
+      "baseline_knowledge",
+      "reproducibility"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_064_48e667",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955045+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "交叉领域",
+      "知识广度"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "用户项目涉及多学科",
+    "question": "你的项目涉及跨领域知识（如CV+NLP），而我们实验室深耕单一领域（如纯CV）。你如何说服我们你的跨领域经验不会成为短板，反而能带来新视角？请给出一个具体的融合思路。",
+    "followups": [
+      "请用我们实验室的一个具体问题为例，说明如何引入你另一个领域的知识。",
+      "你认为跨领域经验可能带来哪些沟通或协作挑战？"
+    ],
+    "good_answer_points": [
+      "能举出具体的融合案例，而非空谈",
+      "承认跨领域学习的挑战，并提出应对措施",
+      "展示出对实验室领域的深入理解"
+    ],
+    "red_flags": [
+      "贬低单一领域研究，认为跨领域必定更优",
+      "举出的例子不切实际或无法落地",
+      "对实验室领域缺乏基本了解"
+    ],
+    "related_slots": [
+      "interdisciplinary_experience",
+      "domain_knowledge",
+      "integration_idea"
+    ],
+    "difficulty": "高",
+    "id": "syn_匹配与总结_065_754492",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955064+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "项目取舍",
+      "决策逻辑"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "用户项目中有多个备选方案",
+    "question": "在你项目中，你最终选择了方案A而非方案B，而据我了解，我们公司目前正在使用方案B的思路。请详细解释你当时选择方案A的决策过程，并说明如果到我们公司，你会坚持方案A还是调整为方案B？为什么？",
+    "followups": [
+      "如果方案B在某些维度（如可解释性、部署成本）优于A，你会如何权衡？",
+      "请设计一个对比实验，量化方案A与方案B在我们场景下的差异。"
+    ],
+    "good_answer_points": [
+      "清晰阐述决策依据（如实验数据、资源约束、业务需求）",
+      "能结合新场景调整选择，而非固执己见",
+      "提出具体的对比实验方案"
+    ],
+    "red_flags": [
+      "记不清当时决策原因或前后矛盾",
+      "一味坚持原方案，不尊重公司现有技术栈",
+      "提出的对比实验缺乏可操作性"
+    ],
+    "related_slots": [
+      "decision_making",
+      "tradeoff_analysis",
+      "adaptability"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_066_8b804f",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955077+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "匹配度",
+      "项目迁移",
+      "保研"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "你项目的核心创新点和目标实验室的哪项研究最相似？如果让你用一句话向该导师解释你的项目如何补充他的工作，你会怎么说？",
+    "followups": [
+      "你提到补充，具体是方法上的延拓还是应用场景的扩展？",
+      "如果导师说他的工作已经覆盖了你的方向，你会怎么回应？",
+      "你的项目中是否有技术或结论可以直接复用到他最近的论文里？",
+      "你觉得自己需要花多少时间理解目标实验室的技术栈才能开始贡献？"
+    ],
+    "good_answer_points": [
+      "能明确说出自己项目与目标研究方向的共通核心点",
+      "能用简洁的语言概括补充关系而非简单并列",
+      "表现出对目标实验室工作的深入理解（如读过论文）",
+      "愿意主动适应新环境，有具体的学习计划"
+    ],
+    "red_flags": [
+      "笼统说“都是AI方向”或“都有深度学习”",
+      "无法指出具体重叠点，只会复述项目介绍",
+      "不承认存在差异，或对导师的工作一无所知",
+      "表现出抵触学习新东西的态度"
+    ],
+    "related_slots": [
+      "项目创新点",
+      "目标实验室研究方向",
+      "技术栈差异",
+      "学习计划"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_067_b58285",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955095+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "迁移能力",
+      "方法论",
+      "求职"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "假设你加入我们团队后，被分到一个与以往项目数据分布完全不同的任务，你从之前项目中总结的哪个方法论或经验可以直接用？哪个需要彻底放弃？",
+    "followups": [
+      "具体说说那个方法论是什么？它为什么能跨场景适用？",
+      "需要放弃的部分，你打算如何重新学习？",
+      "你在原项目中遇到过数据分布变化的情况吗？怎么处理的？",
+      "如果新任务没有现成代码或工具，你如何快速搭建实验流程？"
+    ],
+    "good_answer_points": [
+      "总结出可迁移的核心方法论（如数据预处理技巧、模型评估框架）",
+      "诚实指出不可迁移部分，并有替代学习方案",
+      "体现适应性和问题拆解能力",
+      "举例说明过去处理过类似分布变化的问题"
+    ],
+    "red_flags": [
+      "说所有经验都能直接用，不承认差异",
+      "无法抽象出通用方法，只讲具体操作",
+      "对未知任务表现出焦虑或拒绝",
+      "没有思考过项目经验的局限性"
+    ],
+    "related_slots": [
+      "可迁移方法论",
+      "不可迁移经验",
+      "适应策略",
+      "过往处理分布变化的经验"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_068_d15bcc",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955113+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "研究能力",
+      "独立项目",
+      "保研"
+    ],
+    "applies_to": [
+      "保研"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "你的项目从构思到完成，哪个决策是你独立做出的，并且后来证明非常关键？如果现在让你重做，你会改变哪个环节来更贴近目标实验室的研究范式？",
+    "followups": [
+      "当时为什么那么决策？有没有其他方案？",
+      "改变后的环节预期会带来什么收益？需要哪些额外资源？",
+      "你如何判断这种改变是否值得？",
+      "目标实验室的研究范式具体指什么？你从哪了解的？"
+    ],
+    "good_answer_points": [
+      "清晰描述独立决策的过程和理由",
+      "能指出具体改进点，且改进方向与目标实验室方法论一致",
+      "表现出反思和批判性思维",
+      "了解目标实验室的研究范式和偏好"
+    ],
+    "red_flags": [
+      "说所有决策都是导师/队友做的",
+      "无法指出任何可改进之处",
+      "改进点与目标实验室毫无关系",
+      "对目标实验室的研究方法一知半解"
+    ],
+    "related_slots": [
+      "独立决策",
+      "改进点",
+      "目标实验室研究范式",
+      "反思能力"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_069_6bef3c",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955130+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "项目选择",
+      "个人动机",
+      "求职"
+    ],
+    "applies_to": [
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "为什么你在这个项目上选择了A方法而不是B方法？如果现在让你用我们团队常用的C方法重新实现，你觉得最大的挑战会是什么？",
+    "followups": [
+      "A方法当时解决了什么痛点？C方法能覆盖吗？",
+      "你对C方法了解多少？有实践经验吗？",
+      "如果时间紧迫，你会优先迁移代码还是重新实现？",
+      "你觉得C方法在你的任务上效果可能不如A方法时，你会怎么说服团队？"
+    ],
+    "good_answer_points": [
+      "对方法选择有合理的权衡分析",
+      "对团队常用方法有了解，能说出差异",
+      "能预判挑战并给出解决思路",
+      "愿意学习新方法，同时保留批判性"
+    ],
+    "red_flags": [
+      "对方法选择没有深入思考，只会说“别人推荐”",
+      "对团队所用方法完全不了解",
+      "认为自己的方法一定更好，拒绝改变",
+      "无法识别潜在挑战"
+    ],
+    "related_slots": [
+      "方法选择理由",
+      "团队常用方法了解",
+      "迁移挑战",
+      "方法对比"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_070_e73c7a",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955148+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "项目局限性",
+      "适应性",
+      "保研求职混合"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "你的项目在实验设置或假设上有什么局限性？如果目标实验室/团队让你在同样的方向继续深入，你会从哪个角度突破这些局限？",
+    "followups": [
+      "这个局限是你主动发现的还是后来才知道的？",
+      "突破方案需要哪些新的技能或资源？你如何获取？",
+      "如果团队已经有人在做类似的突破，你怎么定位自己的工作？",
+      "你预期突破后带来的提升有多大？有量化估计吗？"
+    ],
+    "good_answer_points": [
+      "能诚实地指出具体局限性（如数据量、假设简化）",
+      "提出的突破方向有逻辑且可行",
+      "表现出主动学习新技能的意愿",
+      "有团队协作意识，能与其他工作协调"
+    ],
+    "red_flags": [
+      "说项目没有局限性",
+      "提出的突破方向与目标团队方向无关",
+      "没有具体的资源获取计划",
+      "无法量化或预期效果"
+    ],
+    "related_slots": [
+      "项目局限性",
+      "突破方向",
+      "新技能需求",
+      "团队协作"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_071_294224",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955167+00:00",
+    "reviewed": false
+  },
+  {
+    "category": "匹配与总结",
+    "tags": [
+      "复盘",
+      "失败经验",
+      "成长",
+      "保研求职混合"
+    ],
+    "applies_to": [
+      "保研",
+      "求职"
+    ],
+    "related_state": "S6_matching",
+    "trigger": "user: 我有项目经验",
+    "question": "项目过程中你肯定遇到过失败或不如预期的结果。请分享一个具体的例子，并说明你从中学到的经验如何帮助你更好地适应目标实验室/团队的研究节奏？",
+    "followups": [
+      "当时你是如何诊断失败原因的？",
+      "之后你采取了什么措施避免类似问题？",
+      "这个经验对你处理不确定性问题有什么启发？",
+      "如果目标实验室/团队的工作模式是快速迭代，你之前的失败经历让你对快速失败有什么看法？"
+    ],
+    "good_answer_points": [
+      "具体描述失败案例，而非泛泛而谈",
+      "有系统性的归因分析（如实验设计、假设错误）",
+      "总结出可迁移的应对策略",
+      "表现出对研究节奏的理解和适应态度"
+    ],
+    "red_flags": [
+      "说项目没有失败",
+      "失败后只归咎于外部因素",
+      "学到的经验与适应新环境无关",
+      "对快速迭代模式表现出抵触"
+    ],
+    "related_slots": [
+      "失败案例",
+      "归因分析",
+      "应对策略",
+      "研究节奏适应"
+    ],
+    "difficulty": "中",
+    "id": "syn_匹配与总结_072_97a296",
+    "source": "synthetic",
+    "generated_at": "2026-05-10T03:52:07.955185+00:00",
+    "reviewed": false
+  }
+]
