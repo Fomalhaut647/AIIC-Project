@@ -16,3 +16,6 @@ logs/*.log
 
 # Plan2: per-user profile JSON dumps（与 sessions 一样不入库）
 data/users/*.json
+
+# git worktrees (skill: superpowers:using-git-worktrees default location)
+.worktrees
