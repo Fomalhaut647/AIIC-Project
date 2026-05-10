@@ -1343,19 +1343,22 @@ document.getElementById("toggle-speaker")?.addEventListener("click", () => {
 updateMicToggleVisual();
 updateSpeakerToggleVisual();
 
-// ---------- Plan3 G2 STT: VoiceInput class (Web Speech API) ----------
+// ---------- Plan3.5 Bug 3 STT: VoiceInput class (MediaRecorder + server-side ASR) ----------
 
 /**
- * 封装 webkitSpeechRecognition: zh-CN locale, continuous + interimResults.
- * 一次只允许一个 instance 录音 (constructor 自动 stop 旧的)。
+ * 封装 MediaRecorder + multipart fetch 到 /api/stt/transcribe。
+ * 替代 v1 Chrome 原生 Web Speech API (中文准确度差且仅 Chromium 系支持)。
+ *
+ * 对比旧实现：
+ * - 浏览器支持: getUserMedia + MediaRecorder = Chrome / Firefox / Safari (vs Chrome only)
+ * - 准确度: 后端 mimo-v2-omni 多模态模型转录, 比 Chrome 原生中文 ASR 更稳
+ * - UX 退化: 没有流式 partial result, 用户停录后才看到完整文本 (trade-off 必接受)
+ * - 网络依赖: 后端服务必需; 503 fallback toast 提示用户改打字
  *
  * 使用方式:
  *   const v = new VoiceInput({ targetTextarea, onStart, onStop, onError });
- *   v.start();   // 申请麦克风权限并开始录音
- *   v.stop();    // 主动停 (用户再点 mic-btn 或关 mic toggle)
- *
- * partial 结果实时填到 textarea (替换尾部 interim 段);
- * final 结果 commit 到 textarea + 累加。
+ *   v.start();   // async 申请麦克风权限并开始录音; 失败回调 onError
+ *   v.stop();    // 主动停, 触发 onstop → 上传转录 → onStop callback
  */
 class VoiceInput {
   constructor(opts) {
@@ -1364,96 +1367,186 @@ class VoiceInput {
     this.onStop = opts.onStop || (() => {});
     this.onError = opts.onError || (() => {});
     this.isRecording = false;
-    this._recognition = null;
-    this._baseValue = "";   // 录音开始前 textarea 的初始内容 (后续追加)
-    this._finalChunk = "";  // 已 commit 的最终段累加
+    this._mediaRecorder = null;
+    this._stream = null;
+    this._chunks = [];
   }
 
   static isSupported() {
     return typeof window !== "undefined" &&
-      ("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function" &&
+      typeof window.MediaRecorder === "function";
   }
 
-  start() {
+  // 静态属性: MediaRecorder mime fallback 链, 优先 webm/opus (Chrome 默认 + 体积小)。
+  // 按顺序探 MediaRecorder.isTypeSupported, 第一个 true 的赢; 都不支持降级到 ""
+  // (浏览器选默认; 后端 ffmpeg 转码到 wav 兜底)。
+  static MIME_PRIORITY = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/wav",
+  ];
+
+  async start() {
     if (this.isRecording) return;
-    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Ctor) {
-      this.onError(new Error("浏览器不支持 Web Speech API (建议 Chrome/Edge)"));
+    if (!VoiceInput.isSupported()) {
+      this.onError(new Error("浏览器不支持麦克风录音 (建议 Chrome / Edge / Firefox)"));
       return;
     }
-    const rec = new Ctor();
-    rec.lang = "zh-CN";
-    rec.continuous = true;
-    rec.interimResults = true;
 
-    rec.onstart = () => {
+    // 1. 申请麦克风权限 (getUserMedia 异步)
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      // NotAllowedError / NotFoundError / SecurityError 等
+      const name = e && e.name ? e.name : "unknown";
+      const msg = name === "NotAllowedError"
+        ? "请允许麦克风权限 (浏览器地址栏左侧 🎤 图标)"
+        : name === "NotFoundError"
+        ? "未检测到麦克风设备"
+        : `获取麦克风失败: ${name}`;
+      this.onError(new Error(msg));
+      return;
+    }
+    this._stream = stream;
+
+    // 2. 选 mime: 探 MIME_PRIORITY 链, 第一个 isTypeSupported 的赢
+    let mime = "";
+    for (const m of VoiceInput.MIME_PRIORITY) {
+      if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) {
+        mime = m;
+        break;
+      }
+    }
+    // mime === "" → 让浏览器选默认; 后端 ffmpeg 兜底转 wav。
+
+    // 3. 创建 MediaRecorder
+    let recorder;
+    try {
+      recorder = mime ? new window.MediaRecorder(stream, { mimeType: mime })
+                      : new window.MediaRecorder(stream);
+    } catch (e) {
+      this._cleanupStream();
+      this.onError(new Error("无法初始化录音器: " + (e.message || e)));
+      return;
+    }
+    this._mediaRecorder = recorder;
+    this._chunks = [];
+
+    recorder.ondataavailable = (ev) => {
+      if (ev.data && ev.data.size > 0) this._chunks.push(ev.data);
+    };
+    recorder.onstart = () => {
       this.isRecording = true;
-      this._baseValue = this.targetTextarea.value || "";
-      this._finalChunk = "";
       this.onStart();
     };
-
-    rec.onresult = (ev) => {
-      let interim = "";
-      // 从 resultIndex 起遍历: isFinal 的 commit 到 _finalChunk; 否则进 interim
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const r = ev.results[i];
-        const txt = r[0]?.transcript || "";
-        if (r.isFinal) this._finalChunk += txt;
-        else interim += txt;
-      }
-      // textarea = base + finalChunk + interim (interim 每次刷新被替换)
-      const sep = this._baseValue && !this._baseValue.endsWith("\n") ? " " : "";
-      this.targetTextarea.value =
-        this._baseValue + sep + this._finalChunk + interim;
+    recorder.onerror = (ev) => {
+      const errName = (ev && ev.error && ev.error.name) || "unknown";
+      this.onError(new Error("录音出错: " + errName));
     };
-
-    rec.onerror = (ev) => {
-      // 终止性错误（权限拒/麦克风不可用/服务不允许）必须先置 isRecording=false，
-      // 否则 onend auto-restart 分支会无限尝试 start() 制造循环。
-      // no-speech / network 等可恢复错误让 onend cleanup 兜底（isRecording 维持
-      // 由 onend 决定）。
-      const fatal = ["not-allowed", "audio-capture", "service-not-allowed"];
-      if (fatal.includes(ev.error)) {
-        this.isRecording = false;
-      }
-      this.onError(new Error(`语音识别错误: ${ev.error || "unknown"}`));
-    };
-
-    rec.onend = () => {
-      // continuous=true 模式静音超时也会 onend; 区分 "用户主动 stop"（stop()
-      // 把 isRecording 先置 false）vs "静音 timeout"（isRecording 仍 true，
-      // 触发自动重启延续录音）。重启失败则落到 cleanup 路径。
-      if (this.isRecording && this._recognition) {
-        try {
-          this._recognition.start();
-          return;
-        } catch (_) {
-          /* 重启失败（权限撤销 / 浏览器抑制）→ 落 cleanup */
-        }
-      }
+    recorder.onstop = async () => {
       this.isRecording = false;
-      this._recognition = null;
+      const blobMime = recorder.mimeType || mime || "audio/webm";
+      const blob = new Blob(this._chunks, { type: blobMime });
+      this._chunks = [];
+      this._cleanupStream();
+      // 上传 + 转录回填 textarea。失败由 _uploadAndTranscribe 内部 onError 处理。
+      await this._uploadAndTranscribe(blob);
       this.onStop();
     };
 
-    this._recognition = rec;
+    // 4. 启动录音 (sync; 真正的 isRecording=true 在 onstart event 内置)
     try {
-      rec.start();
+      recorder.start();
     } catch (e) {
-      // start() 在权限拒绝 / 已在录时抛 InvalidStateError; 触发 onError
-      this.isRecording = false;
-      this._recognition = null;
-      this.onError(e);
+      this._cleanupStream();
+      this.onError(new Error("无法启动录音: " + (e.message || e)));
     }
   }
 
   stop() {
-    if (!this.isRecording || !this._recognition) return;
-    // 先置 false 让 onend 区分用户主动 stop（不重启）vs 静音 timeout（重启）
-    this.isRecording = false;
-    try { this._recognition.stop(); } catch (_) {}
-    // _recognition 由 onend cleanup 路径置 null
+    if (!this.isRecording || !this._mediaRecorder) return;
+    // 触发 onstop async; cleanup + upload 在 onstop 内
+    try { this._mediaRecorder.stop(); } catch (_) {}
+  }
+
+  _cleanupStream() {
+    if (this._stream) {
+      try {
+        this._stream.getTracks().forEach(t => t.stop());
+      } catch (_) {}
+      this._stream = null;
+    }
+    this._mediaRecorder = null;
+  }
+
+  async _uploadAndTranscribe(blob) {
+    // 上传 audio blob 到 /api/stt/transcribe → 把 transcript 追加到 textarea。
+    if (!blob || blob.size === 0) return;
+    if (blob.size > 5 * 1024 * 1024) {
+      this.onError(new Error("录音过长 (限 60s / 5MB), 请缩短后重试"));
+      return;
+    }
+
+    const fd = new FormData();
+    // filename 取个合理后缀, server 端用 mime 做实际路由
+    const ext = (blob.type || "audio/webm").includes("webm") ? "webm"
+              : (blob.type || "").includes("mp4")  ? "m4a"
+              : (blob.type || "").includes("ogg")  ? "ogg"
+              : (blob.type || "").includes("wav")  ? "wav"
+              : "webm";
+    fd.append("file", blob, `recording.${ext}`);
+    if (typeof USER_ID === "string") fd.append("user_id", USER_ID);
+
+    let resp;
+    try {
+      resp = await fetch("/api/stt/transcribe", { method: "POST", body: fd });
+    } catch (e) {
+      this.onError(new Error("上传录音失败: " + (e.message || e)));
+      return;
+    }
+    if (!resp.ok) {
+      // 503 走 TTS 同款 fallback toast 模式; 其余 status 给具体错误
+      let msg;
+      if (resp.status === 503) {
+        msg = "STT 服务暂时不可用, 请改键盘输入";
+      } else if (resp.status === 413) {
+        msg = "录音过长 (≤ 60s / 5MB)";
+      } else if (resp.status === 422) {
+        msg = "音频解码失败, 请重录";
+      } else if (resp.status === 400) {
+        msg = "录音格式不支持 (浏览器 MediaRecorder 设置异常)";
+      } else {
+        msg = `STT 上传失败 (HTTP ${resp.status})`;
+      }
+      this.onError(new Error(msg));
+      return;
+    }
+
+    let data;
+    try {
+      data = await resp.json();
+    } catch (_) {
+      this.onError(new Error("STT 响应解析失败"));
+      return;
+    }
+    const transcript = (data && typeof data.transcript === "string") ? data.transcript.trim() : "";
+    if (!transcript) {
+      // 空转录 (静音 / 无清晰人声) 不视为错; 给个 toast 让用户知道。
+      if (typeof _plan3Toast === "function") {
+        _plan3Toast("没听清, 请再说一次", "warn");
+      }
+      return;
+    }
+    // 在原有内容后追加, 空格 / 换行 分隔(用户已有打字内容不丢)
+    const cur = this.targetTextarea.value || "";
+    const sep = cur && !cur.endsWith("\n") ? " " : "";
+    this.targetTextarea.value = cur + sep + transcript;
   }
 }
 
