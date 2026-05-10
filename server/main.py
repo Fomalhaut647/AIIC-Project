@@ -16,6 +16,8 @@ import os
 import re
 import subprocess
 import uuid
+
+import httpx
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -663,9 +665,14 @@ async def api_coach_resume_iterate(body: _ResumeIterateReq) -> ResumeRevision:
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_USER_QUOTA = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTS = {"pdf", "docx", "md", "txt"}
-# 防 path-traversal：user_id 用作 FS 路径组件，必须严格白名单
-# (TODO: 同型 latent bug 也存在于 services/store.py:_user_profile_path
-#  — Plan2 retrofit 不在 Q4 scope，留 followup)
+# 防 path-traversal：user_id 用作 FS 路径组件，必须严格白名单。
+# REBASE NOTE: main 已在 Plan2 milestone polish (df4328c) 加了等价的
+# `_SAFE_ID_RE` + `_validate_id_or_404(value, kind)` helper（位于 module 顶部）。
+# Q6 起手 rebase 时必须：
+#   1. 删本块 USER_ID_PATTERN 定义
+#   2. 把下面 `if not USER_ID_PATTERN.fullmatch(user_id)` 改用 `_validate_id_or_404(user_id, "user")`
+#   3. 把 tests/test_endpoints_uploads.py:152 的 `assert r.status_code == 400` → 404
+# 沿用 main 的 404 (而非 400) 是有意：避免 leak user 是否存在信号。
 USER_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
@@ -674,7 +681,11 @@ async def upload_file(
     file: UploadFile = File(...),
     user_id: str = Form("anonymous"),
 ):
-    """Spec E §7.2 — 上传项目材料；解析后注入 onboarding/material textarea。"""
+    """Spec E §7.2 — 上传项目材料；解析后注入 onboarding/material textarea。
+
+    部署 prerequisite: nginx `client_max_body_size 12M;`（默认 1MB 会先拒）。
+    Plan §Q9 step 5 处理；如部署绕过 nginx 直跑 fastapi 则不需。
+    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="filename missing")
 
@@ -688,8 +699,16 @@ async def upload_file(
     if ext not in ALLOWED_EXTS:
         raise HTTPException(status_code=400, detail=f"unsupported file type: .{ext}")
 
+    # OOM 防御：Content-Length pre-check 比 await file.read() 早早 reject 大文件
+    if file.size is not None and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"file too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)",
+        )
+
     contents = await file.read()
     if len(contents) > MAX_FILE_SIZE:
+        # 兜底：若客户端未发 Content-Length header，pre-check 不触发
         raise HTTPException(
             status_code=413,
             detail=f"file too large (max {MAX_FILE_SIZE // 1024 // 1024}MB)",
@@ -713,25 +732,31 @@ async def upload_file(
     raw_path = user_dir / f"{file_id}.{ext}"
     raw_path.write_bytes(contents)
 
+    # 把 metadata write 与 parse 同 try 块覆盖：parse 失败 → 422 + unlink raw；
+    # metadata write 失败 (磁盘满 / permission) → 507 + unlink raw 避免 orphan。
+    # spec §4 要求 raw + json 配对，未配对 = 不可恢复污染（配额 leak）。
     try:
         parsed_text, warnings = await parse_file(raw_path, ext)
+        meta = UploadedFile(
+            file_id=file_id,
+            user_id=user_id,
+            original_filename=file.filename,
+            file_type=ext,
+            size_bytes=len(contents),
+            uploaded_at=datetime.now(),
+            parsed_text=parsed_text,
+            parse_warnings=warnings,
+        )
+        (user_dir / f"{file_id}.json").write_text(meta.model_dump_json(indent=2), encoding="utf-8")
     except (ValueError, RuntimeError) as e:
         # 解析失败 = user error → 422，不暴露原始异常文本（可能含 fitz 内部 message）
         # `from e` 保留 chain 给 server-side stderr，client 只看 clean message
         raw_path.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail="parse failed") from e
-
-    meta = UploadedFile(
-        file_id=file_id,
-        user_id=user_id,
-        original_filename=file.filename,
-        file_type=ext,
-        size_bytes=len(contents),
-        uploaded_at=datetime.now(),
-        parsed_text=parsed_text,
-        parse_warnings=warnings,
-    )
-    (user_dir / f"{file_id}.json").write_text(meta.model_dump_json(indent=2), encoding="utf-8")
+    except OSError as e:
+        # 磁盘满 / permission / 文件系统错 → 507 Insufficient Storage
+        raw_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=507, detail="storage error") from e
 
     return UploadResponse(
         file_id=file_id,
@@ -746,7 +771,12 @@ async def upload_file(
 
 @app.post("/api/tts/synthesize")
 async def tts_synthesize(req: TTSRequest):
-    """Spec E §9.2 — MiMo TTS；失败 → 503，前端静默降级。"""
+    """Spec E §9.2 — MiMo TTS；失败 → 503，前端静默降级。
+
+    TODO: spec §9.5 per-user 日 quota（200 次/日）当前 YAGNI 砍了——意味着
+    公开 URL 上恶意脚本可刷爆 MiMo token 钱包。Q9 部署时应在 nginx 加
+    `limit_req zone=tts burst=20 nodelay;` 兜底。Plan3-report 已记录 cost exposure。
+    """
     if not req.text.strip():
         raise HTTPException(status_code=422, detail="text is empty")
     if len(req.text) > 4000:
@@ -756,9 +786,11 @@ async def tts_synthesize(req: TTSRequest):
         audio = await synthesize_speech(req.text, req.voice)
     except KeyError:
         # MIMO_API_KEY 未配 → 配置错；spec 要求统一 503 但 detail 区分便于运维诊断
-        raise HTTPException(status_code=503, detail="TTS not configured (MIMO_API_KEY missing)")
-    except Exception:
-        # 上游网络 / HTTP / timeout 错 → 503 静默降级
-        raise HTTPException(status_code=503, detail="TTS upstream unavailable")
+        # detail 不再含 env var 名（避免向恶意客户端暴露攻击面提示）
+        raise HTTPException(status_code=503, detail="TTS not configured")
+    except httpx.HTTPError as e:
+        # httpx.NetworkError / TimeoutException / HTTPStatusError 等 → 503 静默降级
+        # 程序 bug (TypeError / AttributeError 等) 不被吞，propagate 到 fastapi 500 显形
+        raise HTTPException(status_code=503, detail="TTS upstream unavailable") from e
 
     return Response(content=audio, media_type="audio/mpeg")
