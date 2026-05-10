@@ -286,3 +286,14 @@ class TTSRequest(BaseModel):
     text: str
     voice: str = "default"
     user_id: str = "anonymous"
+
+
+class STTResponse(BaseModel):
+    """Plan3.5 Bug 3 — POST /api/stt/transcribe 响应。
+
+    server-side STT 替代 v1 的 Chrome `webkitSpeechRecognition`（非 Chrome
+    浏览器无该 API）。前端把 MediaRecorder 录的 audio blob multipart-post
+    上来；后端走 MiMo Omni 转录，返回纯文本。
+    """
+    transcript: str
+    user_id: str
