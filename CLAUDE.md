@@ -2,10 +2,10 @@
 
 ## 项目概览
 
-- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7） + Plan3 多模态输入（G1-G5）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D + Plan3 spec E）、[`docs/plans/`](docs/plans)（含 Plan2 plan + Plan3 plan）、[`docs/progress/`](docs/progress)（Plan2/Plan3 实施回顾）、[`docs/plan4-brainstorm.md`](docs/plan4-brainstorm.md)（Plan4 候选 + 答辩素材草稿）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
+- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7） + Plan3 多模态输入（G1-G5） + Plan3.5 polish pass（5 bugs + 5 improvements + STT API 切换）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D + Plan3 spec E）、[`docs/plans/`](docs/plans)（含 Plan2 plan + Plan3 plan）、[`docs/progress/`](docs/progress)（Plan2/Plan3/Plan3.5 实施回顾）、[`docs/plan4-brainstorm.md`](docs/plan4-brainstorm.md)（Plan4 候选 + 答辩素材草稿）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
 - **v1 处置**：MiMo web chat 业务代码已归档到分支 `archive/web-chat-v1`，bootstrap commit `975a1f0` 从 main 删除（保留 pixi.toml / pytest.ini / .env / docs/ 等基础设施）
 - **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek + MiMo API；vanilla JS 单页前端 + Web Speech API；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
-- **代码规模**：main 上 v2 + Plan2 + Plan3 = bootstrap 后 ~100 commits；core modules: `services/` (Plan3 加 `tts.py` MiMo OpenAI 兼容 audio.speech + `file_parse.py` PDF/Word/MD/TXT 分发) + `server/main.py` (Plan3 加 `POST /api/uploads` + `POST /api/tts/synthesize`；与 Plan2 共享 `_SAFE_ID_RE` regex 但 status 400 vs 404 各 spec-correct 差异化) + `web/` (Plan3 加双独立 toggle 🎤/🔈 + 三 textarea mic 按钮 + view-material 上传按钮 + VoiceInput class + fetchAndPlayTTS) + `data/uploads/<user_id>/<file_id>.{ext,json}` (Plan3 上传持久化, .gitignore 屏蔽); 测试 **~200 passes**（v2 baseline + Plan2 增量 + Plan3 增量；Plan3 含 file_parse / tts_module / endpoints_uploads / endpoints_tts / web_dom / web_app / integration smoke 共 ~62 新 tests）
+- **代码规模**：main 上 v2 + Plan2 + Plan3 + Plan3.5 = bootstrap 后 ~110 commits；core modules: `services/` (Plan3 加 `tts.py` MiMo OpenAI 兼容 audio.speech + `file_parse.py` PDF/Word/MD/TXT 分发) + `server/main.py` (Plan3 加 `POST /api/uploads` + `POST /api/tts/synthesize`；与 Plan2 共享 `_SAFE_ID_RE` regex 但 status 400 vs 404 各 spec-correct 差异化) + `web/` (Plan3 加双独立 toggle 🎤/🔈 + 三 textarea mic 按钮 + view-material 上传按钮 + VoiceInput class + fetchAndPlayTTS) + `data/uploads/<user_id>/<file_id>.{ext,json}` (Plan3 上传持久化, .gitignore 屏蔽); 测试 **252 passes**（v2 baseline + Plan2 + Plan3 + Plan3.5；含 services/stt.py + endpoints_stt + Plan3.5 frontend 增量约 60 tests）
 
 ### Plan2 5 个 features 速览（详见 `docs/progress/Plan2-report.md`）
 
@@ -22,10 +22,17 @@
 | feature | 用户路径 | endpoint / 实现 |
 |---|---|---|
 | G1 文件上传 | view-material 上传按钮 → multipart POST → 解析回填 textarea + warnings | `POST /api/uploads` (PyMuPDF + python-docx + md/txt 直读；10MB 单文件 / 50MB user 配额；ext 白名单 .pdf .docx .md .txt) |
-| G2 STT 麦克风 | 三 textarea (onboarding / interview / resume_iterate) 旁 mic 按钮，pulse 红点 | Chrome 原生 `webkitSpeechRecognition`（lang=zh-CN, continuous, interimResults）；onend auto-restart；无后端 |
+| G2 STT 麦克风 | 三 textarea (onboarding / interview / resume_iterate) 旁 mic 按钮，pulse 红点 | **Plan3.5 改 MediaRecorder + multipart POST 到 `/api/stt/transcribe`**（services/stt.py 调 MiMo Omni `mimo-v2-omni` via `/v1/chat/completions + input_audio`，ffmpeg 转码 webm→wav 16kHz mono；MiMo gateway 无 `/v1/audio/transcriptions`，必须走 multimodal channel） |
 | G3 TTS 朗读 | view-interview 出问题时 speaker on 自动 fetch → blob → Audio.play | `POST /api/tts/synthesize` 返 audio/mpeg；MiMo `mimo-v2.5-tts` (OpenAI 兼容 /v1/audio/speech)；503 fallback 静默降级 |
 | G4 双独立 toggle | nav header 🎤/🔈，默认 off + localStorage 持久化 + 中途切换立即停掉对应通道 | (前端 state，无 endpoint) |
 | G5 后端 TTS 封装 | 单调用入口 + retry-once on httpx.NetworkError + 缺 MIMO_API_KEY fail-fast | `services/tts.py:synthesize_speech` |
+
+### Plan3.5 polish pass 速览（详见 `docs/progress/Plan3.5-report.md`）
+
+- **5 bugs**：mic 椭圆 / 用户气泡对齐 / TTS 听不到（autoplay 3-stack）/ 内心 OS layout 隐式解 / STT 改 MediaRecorder+API
+- **5 improvements**：3-col layout（左 sidebar 阶段 + 反馈 / 中对话 / 右 OS 抽屉）/ 输入框加高 / humor_card 后端固定模板（删 LLM 调）
+- **STT 实施关键**：MiMo `/v1/audio/transcriptions` 不存在；用 `mimo-v2-omni` 多模态 via `/v1/chat/completions + input_audio` 字段；ffmpeg conda dep（pixi `ffmpeg = ">=8.1.1,<9"`）转码 webm/opus → wav 16kHz mono（MiMo 服务器只解码 mp3/flac/m4a/wav/ogg 不接 webm）
+- **PR workflow**：拆两 PR 并行（PR #5 backend / PR #6 frontend），各派 fresh reviewer 5-并行 + Haiku confidence scoring < 80 丢弃；PR #5 squash merge / PR #6 rebase merge（CLAUDE.md global 跨域多 commit 用 rebase）
 
 ## 项目挑战说明（2026-05-09 主办方下发）
 
