@@ -24,14 +24,16 @@ def test_tts_happy(client):
     assert r.content == b"fake mp3 bytes"
 
 
-def test_tts_passes_voice_and_user_id(client):
+def test_tts_voice_passed_user_id_ignored(client):
+    """voice 透传给 wrapper；user_id 仅用于 endpoint 层（配额/日志），
+    Q3 wrapper 签名 (text, voice, *, timeout) 不收 user_id 是设计意图。"""
     fake = AsyncMock(return_value=b"x")
     with patch("server.main.synthesize_speech", fake) as p:
         r = client.post("/api/tts/synthesize", json={
             "text": "hi", "voice": "alto", "user_id": "u1",
         })
     assert r.status_code == 200
-    p.assert_awaited_once_with("hi", "alto")  # voice 被透传
+    p.assert_awaited_once_with("hi", "alto")  # 仅 2 个 positional args，user_id 不透传
 
 
 def test_tts_empty_text_422(client):
@@ -54,3 +56,15 @@ def test_tts_upstream_failure_503(client):
     with patch("server.main.synthesize_speech", fake):
         r = client.post("/api/tts/synthesize", json={"text": "hi"})
     assert r.status_code == 503
+    # generic upstream failure detail
+    assert "upstream" in r.json()["detail"]
+
+
+def test_tts_missing_api_key_503(client):
+    """KeyError (MIMO_API_KEY 未配) → 503 with detail 区分 'not configured'。
+    保护 except KeyError 分流不被未来重构 silent 干掉。"""
+    fake = AsyncMock(side_effect=KeyError("MIMO_API_KEY"))
+    with patch("server.main.synthesize_speech", fake):
+        r = client.post("/api/tts/synthesize", json={"text": "hi"})
+    assert r.status_code == 503
+    assert "not configured" in r.json()["detail"]
