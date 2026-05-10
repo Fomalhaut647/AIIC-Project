@@ -78,3 +78,23 @@ def test_list_user_sessions_returns_metas(tmp_store: SessionStore):
     metas = tmp_store.list_user_sessions("user-D")
     assert len(metas) == 2
     assert {m.session_id for m in metas} == {"s1", "s2"}
+
+
+def test_update_user_profile_concurrent_writes_no_lost_updates(tmp_store: SessionStore):
+    """证明 per-user asyncio.Lock 真的在序列化 RMW：N 个并发 update 后必须有 N 条 sessions。
+
+    没有 lock 时（多个 coroutine 各自 read-then-write），后写覆盖前写 → total < N。
+    有 lock → total == N。
+    """
+
+    async def fan_out():
+        await asyncio.gather(*[
+            tmp_store.update_user_profile("user-E", _meta(f"s{i}", 70))
+            for i in range(10)
+        ])
+
+    asyncio.run(fan_out())
+
+    profile = tmp_store.load_user_profile("user-E")
+    assert profile.total_sessions == 10
+    assert {m.session_id for m in profile.sessions} == {f"s{i}" for i in range(10)}

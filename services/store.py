@@ -74,7 +74,15 @@ class SessionStore:
         return self.load_user_profile(user_id).sessions
 
     async def update_user_profile(self, user_id: str, meta: SessionMeta) -> None:
-        """聚合一条 SessionMeta 到 user profile, 原子写盘."""
+        """聚合一条 SessionMeta 到 user profile, 原子写盘.
+
+        Trade-off: read/write inside the lock are sync (blocking) calls. Acceptable at
+        the expected write rate (~1 per session review). The async signature reserves
+        room to off-load to a thread pool later if profiles balloon.
+        Per-user `asyncio.Lock` serializes RMW so concurrent updates to the same user
+        cannot lose entries. The shared `.tmp` filename is also per-user-safe via
+        the same lock — different users write disjoint paths and never contend.
+        """
         lock = self._user_locks.setdefault(user_id, asyncio.Lock())
 
         async with lock:
