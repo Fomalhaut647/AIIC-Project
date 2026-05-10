@@ -164,8 +164,8 @@
 
     <!-- RIGHT DRAWER: 面试官内心 OS (Imp 4: 默认 collapsed 窄 tab，点击展开侧抽屉) -->
     <!-- btn-cheat-toggle 复用既有 id (app.js 事件挂钩)，class 加 cheat-drawer-tab 切换为侧 tab 视觉 -->
-    <button id="btn-cheat-toggle" class="cheat-toggle cheat-drawer-tab hidden" type="button" title="偷看面试官脑回路" aria-label="切换面试官内心 OS 抽屉">🧠 偷看面试官脑回路</button>
-    <aside id="cheat-panel" class="cheat-panel hidden" aria-label="面试官内心 OS"></aside>
+    <button id="btn-cheat-toggle" class="cheat-toggle cheat-drawer-tab hidden" type="button" title="偷看面试官脑回路" aria-label="切换面试官内心 OS 抽屉" aria-pressed="false" aria-controls="cheat-panel">🧠 偷看面试官脑回路</button>
+    <aside id="cheat-panel" class="cheat-panel hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-label="面试官内心 OS"></aside>
   </section>
 
   <!-- REPORT -->

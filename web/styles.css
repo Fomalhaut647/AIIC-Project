@@ -324,17 +324,10 @@ textarea::placeholder { color: var(--text-2); }
 
 /* ----- interview ----- */
 
-.interview-banner {
-  background: var(--bg-1);
-  padding: 14px 18px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+/* Plan3.5 Imp 1+3 cleanup: 旧 .interview-banner 块（原顶部 banner）被
+   .sidebar-banner-row 取代,只保留下方 .banner-label / .banner-value
+   被 sidebar 复用,banner 容器规则已是 dead code 移除。 */
+
 .banner-label {
   display: block;
   font-size: 11px;
@@ -372,30 +365,11 @@ textarea::placeholder { color: var(--text-2); }
   white-space: pre-wrap;
 }
 
-.feedback {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  padding: 14px 16px;
-  border-radius: 10px;
-  margin-top: 16px;
-  font-size: 14px;
-}
-.feedback b { color: var(--text-0); }
-.feedback .miss {
-  display: inline-block;
-  padding: 2px 8px;
-  margin: 2px 4px 2px 0;
-  background: var(--bad-soft);
-  color: var(--bad);
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.feedback .score {
-  margin-top: 8px;
-  color: var(--text-2);
-  font-size: 12px;
-}
+/* Plan3.5 Imp 3 cleanup: 旧 .feedback 块被 .sidebar-feedback 取代 (反馈渲染
+   到左侧 sidebar 而非主流下方),整个 .feedback / .feedback b / .feedback .miss
+   / .feedback .score 规则已是 dead code 移除。
+   sidebar 等价规则: .sidebar-feedback / .sidebar-feedback b / .sidebar-feedback
+   .miss / .sidebar-feedback .covered-chip / .sidebar-feedback .score 已加。 */
 
 /* ----- cheat tab + drawer (Plan3.5 Imp 4: OS panel → 右侧推拉抽屉) ----- */
 /* 抽屉 tab：固定在视口右缘中部，垂直竖排文字。点击切换 cheat-panel.hidden。 */
