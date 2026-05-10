@@ -1367,9 +1367,17 @@ class VoiceInput {
     this.onStop = opts.onStop || (() => {});
     this.onError = opts.onError || (() => {});
     this.isRecording = false;
+    // Plan3.5 review round 1 fix (HIGH race): _starting=true 标记 start() 已进入
+    // async getUserMedia 但还没拿到 recorder.onstart event。click handler 必须检
+    // 这个 flag 防双开。_cancelled 是 stop() 在 _starting 时设的请求, getUserMedia
+    // resolve 后跳过后续步骤直接 cleanup, 避免 ghost MediaRecorder 残留。
+    this._starting = false;
+    this._cancelled = false;
     this._mediaRecorder = null;
     this._stream = null;
     this._chunks = [];
+    // 60s client-side auto-stop timer (memory safety + 与后端 5MB cap 配合)
+    this._autoStopTimer = null;
   }
 
   static isSupported() {
@@ -1383,20 +1391,26 @@ class VoiceInput {
   // 静态属性: MediaRecorder mime fallback 链, 优先 webm/opus (Chrome 默认 + 体积小)。
   // 按顺序探 MediaRecorder.isTypeSupported, 第一个 true 的赢; 都不支持降级到 ""
   // (浏览器选默认; 后端 ffmpeg 转码到 wav 兜底)。
+  // 不列 audio/wav: Chrome MediaRecorder 不支持; Safari 支持但产 raw PCM 极易超 5MB。
   static MIME_PRIORITY = [
     "audio/webm;codecs=opus",
     "audio/webm",
     "audio/mp4",
     "audio/ogg;codecs=opus",
-    "audio/wav",
   ];
 
+  static MAX_RECORD_MS = 60_000;
+  static FETCH_TIMEOUT_MS = 70_000;  // 后端 60s + 10s margin
+
   async start() {
-    if (this.isRecording) return;
+    // 防 double start: 已录或正在 async-startup 都直接 return
+    if (this.isRecording || this._starting) return;
     if (!VoiceInput.isSupported()) {
       this.onError(new Error("浏览器不支持麦克风录音 (建议 Chrome / Edge / Firefox)"));
       return;
     }
+    this._starting = true;
+    this._cancelled = false;
 
     // 1. 申请麦克风权限 (getUserMedia 异步)
     let stream;
@@ -1404,6 +1418,7 @@ class VoiceInput {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       // NotAllowedError / NotFoundError / SecurityError 等
+      this._starting = false;
       const name = e && e.name ? e.name : "unknown";
       const msg = name === "NotAllowedError"
         ? "请允许麦克风权限 (浏览器地址栏左侧 🎤 图标)"
@@ -1413,9 +1428,16 @@ class VoiceInput {
       this.onError(new Error(msg));
       return;
     }
+
+    // 2. 检查是否已被 stop() 取消 (用户在 await 期间又点了 mic-btn 取消)
+    if (this._cancelled) {
+      stream.getTracks().forEach(t => t.stop());
+      this._starting = false;
+      return;
+    }
     this._stream = stream;
 
-    // 2. 选 mime: 探 MIME_PRIORITY 链, 第一个 isTypeSupported 的赢
+    // 3. 选 mime: 探 MIME_PRIORITY 链, 第一个 isTypeSupported 的赢
     let mime = "";
     for (const m of VoiceInput.MIME_PRIORITY) {
       if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) {
@@ -1425,13 +1447,14 @@ class VoiceInput {
     }
     // mime === "" → 让浏览器选默认; 后端 ffmpeg 兜底转 wav。
 
-    // 3. 创建 MediaRecorder
+    // 4. 创建 MediaRecorder
     let recorder;
     try {
       recorder = mime ? new window.MediaRecorder(stream, { mimeType: mime })
                       : new window.MediaRecorder(stream);
     } catch (e) {
       this._cleanupStream();
+      this._starting = false;
       this.onError(new Error("无法初始化录音器: " + (e.message || e)));
       return;
     }
@@ -1443,6 +1466,16 @@ class VoiceInput {
     };
     recorder.onstart = () => {
       this.isRecording = true;
+      this._starting = false;
+      // 60s client-side auto-stop: 防用户忘记 stop / 故意长录爆内存
+      this._autoStopTimer = setTimeout(() => {
+        if (this.isRecording) {
+          if (typeof _plan3Toast === "function") {
+            _plan3Toast("已达 60s 上限, 自动停止录音", "warn");
+          }
+          this.stop();
+        }
+      }, VoiceInput.MAX_RECORD_MS);
       this.onStart();
     };
     recorder.onerror = (ev) => {
@@ -1451,6 +1484,10 @@ class VoiceInput {
     };
     recorder.onstop = async () => {
       this.isRecording = false;
+      if (this._autoStopTimer) {
+        clearTimeout(this._autoStopTimer);
+        this._autoStopTimer = null;
+      }
       const blobMime = recorder.mimeType || mime || "audio/webm";
       const blob = new Blob(this._chunks, { type: blobMime });
       this._chunks = [];
@@ -1460,16 +1497,22 @@ class VoiceInput {
       this.onStop();
     };
 
-    // 4. 启动录音 (sync; 真正的 isRecording=true 在 onstart event 内置)
+    // 5. 启动录音 (sync; 真正的 isRecording=true 在 onstart event 内置)
     try {
       recorder.start();
     } catch (e) {
       this._cleanupStream();
+      this._starting = false;
       this.onError(new Error("无法启动录音: " + (e.message || e)));
     }
   }
 
   stop() {
+    // 如果还在 async-startup 阶段, 标记取消; getUserMedia resolve 后会 cleanup 退出。
+    if (this._starting) {
+      this._cancelled = true;
+      return;
+    }
     if (!this.isRecording || !this._mediaRecorder) return;
     // 触发 onstop async; cleanup + upload 在 onstop 内
     try { this._mediaRecorder.stop(); } catch (_) {}
@@ -1504,11 +1547,20 @@ class VoiceInput {
     if (typeof USER_ID === "string") fd.append("user_id", USER_ID);
 
     let resp;
+    // Plan3.5 review round 1 fix (MED): AbortController 70s timeout 防 hung fetch
+    // (DNS hang / packet drop / captive portal Chrome 默认 ~5min 无 limit)。
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), VoiceInput.FETCH_TIMEOUT_MS);
     try {
-      resp = await fetch("/api/stt/transcribe", { method: "POST", body: fd });
+      resp = await fetch("/api/stt/transcribe", { method: "POST", body: fd, signal: ctrl.signal });
     } catch (e) {
-      this.onError(new Error("上传录音失败: " + (e.message || e)));
+      const isAbort = e && e.name === "AbortError";
+      this.onError(new Error(isAbort
+        ? "STT 超时 (70s), 请重试或改键盘输入"
+        : "上传录音失败: " + (e.message || e)));
       return;
+    } finally {
+      clearTimeout(timer);
     }
     if (!resp.ok) {
       // 503 走 TTS 同款 fallback toast 模式; 其余 status 给具体错误
@@ -1576,7 +1628,10 @@ document.querySelectorAll(".mic-btn").forEach(btn => {
       return;
     }
 
-    if (VOICE_INPUT && VOICE_INPUT.isRecording) {
+    // Plan3.5 review round 1 fix (HIGH race): _starting 标记 async-startup 进行中
+    // (await getUserMedia 阶段)。即便 isRecording=false 仍要 stop 老实例,避免
+    // 双开 MediaRecorder + 双 stream 资源泄漏。
+    if (VOICE_INPUT && (VOICE_INPUT.isRecording || VOICE_INPUT._starting)) {
       VOICE_INPUT.stop();
       // 清掉别的 mic-btn 的 active 视觉
       document.querySelectorAll(".mic-btn.mic-pulse").forEach(b => {

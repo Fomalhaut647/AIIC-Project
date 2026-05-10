@@ -98,6 +98,37 @@ def test_voice_input_handles_503_unavailable():
     assert "onError" in fn_chunk
 
 
+def test_voice_input_starting_flag_blocks_double_start():
+    """Plan3.5 review round 1 (HIGH): async start() race fix——_starting flag 防双开。
+
+    场景: 用户在 await getUserMedia 期间(浏览器权限弹窗)再次点 mic-btn 不应触发双
+    实例。click handler 必须检 `_starting` flag 而不仅 `isRecording`。
+    """
+    # mic-btn click handler 用 `forEach(btn => {` 区分另一处 `forEach(b => {` 的更新视觉函数
+    mic_handler_start = APP_JS.find('document.querySelectorAll(".mic-btn").forEach(btn =>')
+    assert mic_handler_start >= 0, "mic-btn click handler 未找到"
+    mic_handler_chunk = APP_JS[mic_handler_start:mic_handler_start + 2500]
+    assert "_starting" in mic_handler_chunk, (
+        "mic-btn click handler 必须检 VOICE_INPUT._starting 防双开 (HIGH race fix)"
+    )
+
+
+def test_voice_input_has_fetch_timeout():
+    """Plan3.5 review round 1 (MED): fetch 必须有 AbortController timeout(70s),
+    防 hung 网络让用户面对永久空白。"""
+    fn_chunk = APP_JS[APP_JS.find("class VoiceInput"):]
+    assert "AbortController" in fn_chunk
+    assert "FETCH_TIMEOUT_MS" in fn_chunk or "70_000" in fn_chunk or "70000" in fn_chunk
+
+
+def test_voice_input_has_max_record_duration_auto_stop():
+    """Plan3.5 review round 1 (LOW): 60s client-side auto-stop 防长录爆 RAM。"""
+    fn_chunk = APP_JS[APP_JS.find("class VoiceInput"):]
+    assert "MAX_RECORD_MS" in fn_chunk
+    assert "60_000" in fn_chunk or "60000" in fn_chunk
+    assert "_autoStopTimer" in fn_chunk
+
+
 # ---------- Plan3.5 Bug 4: TTS 听不到诊断 + 修 ----------
 
 
