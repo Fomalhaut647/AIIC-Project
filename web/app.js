@@ -816,24 +816,28 @@ const STAGES = [
 
 function renderStageOutline() {
   // 渲染左侧 sidebar 的 stage 进度 outline。当前阶段高亮、已过阶段灰勾、未到阶段 ·
+  // 三态: "done" (全部 ✓) / 已知 enum (i<cur ✓, i===cur ▸, i>cur ·) / null/未知 (全部 ·)
+  // 不要把 null 和 "done" 混为一谈——会让首次渲染前 6 阶段都假装完成。
   const el = document.getElementById("interview-stage-outline");
   if (!el) return;
   const cur = state.current_state;
+  const allDone = cur === "done";
   const curIdx = STAGES.findIndex(s => s.key === cur);
-  // done 状态：所有 6 阶段都完成
-  const allDone = cur === "done" || curIdx === -1;
+  const unknownOrNull = !allDone && curIdx === -1;  // null / undefined / 错位 enum
   el.innerHTML = STAGES.map((s, i) => {
-    let cls, icon;
+    let cls, icon, ariaCurrent = "";
     if (allDone) {
       cls = "stage-done"; icon = "✓";
+    } else if (unknownOrNull) {
+      cls = "stage-pending"; icon = "·";  // 未知 / 未启动 → 全部 pending,不假装 done
     } else if (i < curIdx) {
       cls = "stage-done"; icon = "✓";
     } else if (i === curIdx) {
-      cls = "stage-current"; icon = "▸";
+      cls = "stage-current"; icon = "▸"; ariaCurrent = ' aria-current="step"';
     } else {
       cls = "stage-pending"; icon = "·";
     }
-    return `<li class="${cls}"><span class="stage-icon">${icon}</span><span class="stage-label">${escapeHtml(s.label)}</span></li>`;
+    return `<li class="${cls}"${ariaCurrent}><span class="stage-icon">${icon}</span><span class="stage-label">${escapeHtml(s.label)}</span></li>`;
   }).join("");
 }
 
@@ -1003,21 +1007,42 @@ $("#btn-cheat-toggle").addEventListener("click", () => {
   const panel = $("#cheat-panel");
   panel.classList.toggle("hidden");
   // tab 文字保持静态 ("🧠 偷看面试官脑回路")，不再随 open/close 切换
+  // a11y: 同步 aria-hidden / aria-pressed 给屏读用户
+  const isOpen = !panel.classList.contains("hidden");
+  panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+  $("#btn-cheat-toggle").setAttribute("aria-pressed", isOpen ? "true" : "false");
 });
 
 // 抽屉内 X 关闭 (event delegation; renderCheatPanel 注入的 .cheat-drawer-close)
+// 关闭时把焦点归还 tab 按钮 (a11y: focus management)
 document.getElementById("cheat-panel")?.addEventListener("click", (e) => {
   if (e.target.closest(".cheat-drawer-close")) {
-    document.getElementById("cheat-panel").classList.add("hidden");
+    const panel = document.getElementById("cheat-panel");
+    panel.classList.add("hidden");
+    panel.setAttribute("aria-hidden", "true");
+    const tab = document.getElementById("btn-cheat-toggle");
+    if (tab) {
+      tab.setAttribute("aria-pressed", "false");
+      tab.focus();
+    }
   }
 });
 
-// Esc 关闭抽屉 (a11y; 与 replay-mini-modal Esc 同款风格)
+// Esc 关闭抽屉 (a11y; 与 replay-mini-modal Esc 不互踩——分别 match 自己 modal)
+// 命中后 return 不再 fall-through; 防御性: 万一两 modal 同开 (理论 view 互斥不该发生)
+// 也只关一个,用户再按 Esc 关下一个,符合栈式 modal 行为预期。
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const panel = document.getElementById("cheat-panel");
   if (panel && !panel.classList.contains("hidden")) {
     panel.classList.add("hidden");
+    panel.setAttribute("aria-hidden", "true");
+    const tab = document.getElementById("btn-cheat-toggle");
+    if (tab) {
+      tab.setAttribute("aria-pressed", "false");
+      tab.focus();
+    }
+    return;  // 命中 cheat-drawer 后停, 不再处理 mini-modal Esc
   }
 });
 
