@@ -267,10 +267,19 @@ async def api_coach_review(body: _ReviewReq) -> EvaluationReport:
         session = app.state.store.get(body.session_id)
     except SessionNotFound:
         raise HTTPException(status_code=404, detail="session not found")
-    if not session.turns:
+    # Spec C §2.7: 400 when (state != DONE AND turns < 6). Either condition
+    # alone passing means the session is "complete enough" for a meaningful
+    # report. Both failing means the user hit the finish button prematurely.
+    if (
+        session.state != InterviewStage.DONE
+        and len(session.turns) < 6
+    ):
         raise HTTPException(
             status_code=400,
-            detail="no turns to review — session has 0 answered questions",
+            detail=(
+                f"session not yet finished (state={session.state.value}, "
+                f"turns={len(session.turns)}); need state=done or turns>=6"
+            ),
         )
     return await coach.review(
         session.user_model, session.packet, session.turns,
