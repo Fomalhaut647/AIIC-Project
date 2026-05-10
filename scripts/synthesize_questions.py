@@ -14,6 +14,10 @@ def is_card_valid(card: dict) -> bool:
     ]
     if not all(card.get(k) for k in required):
         return False
+    # whitespace-only question slips past truthy check; reject explicitly
+    # (LLM 合成偶尔输出 "  \n  " 这类白板 question)
+    if not card["question"].strip():
+        return False
     if not (1 <= len(card["followups"]) <= 5):
         return False
     if len(card["good_answer_points"]) < 2:

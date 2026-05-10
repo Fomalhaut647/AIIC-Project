@@ -51,3 +51,10 @@ def test_banned_pattern():
     c = _base_card()
     c["question"] = "请介绍你的项目。"
     assert is_card_valid(c) is False
+
+
+def test_whitespace_only_question_rejected():
+    # LLM 合成偶尔输出 "  \n  " 类白板 question；截留掉
+    c = _base_card()
+    c["question"] = "  \n  "
+    assert is_card_valid(c) is False
