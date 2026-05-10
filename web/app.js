@@ -264,7 +264,11 @@ async function startInterviewFromMaterial() {
     renderInterviewView();
     switchView("interview");
   } catch (e) {
-    setMaterialHint("出错：" + e.message, "warn");
+    console.error("material → start chain failed:", e);
+    setMaterialHint(
+      "Coach 暂时无法开始这场训练，请稍后重试或缩短项目原文。",
+      "warn",
+    );
   } finally {
     setMaterialBusy(false);
   }
@@ -369,7 +373,14 @@ async function submitAnswer() {
     submit.disabled = false;
     submit.textContent = "提交回答";
   } catch (e) {
-    showError("提交失败：" + e.message);
+    console.error("interviewer.next failed:", e);
+    if (e.status === 404) {
+      // Spec C §2.6 session_expired — restart the whole flow rather than
+      // letting the user keep typing into a dead session.
+      showError("训练 session 已过期，请回到首页重新开始。");
+    } else {
+      showError("提交失败：网络或服务波动，请稍后重试。");
+    }
     submit.disabled = false;
     submit.textContent = "重试提交";
   }
@@ -484,7 +495,13 @@ async function finishInterview() {
     renderReport(report);
     switchView("report");
   } catch (e) {
-    showError("生成报告失败：" + e.message);
+    console.error("coach.review failed:", e);
+    if (e.status === 400) {
+      // Spec C §2.7 gate: state != DONE AND turns < 6
+      showError("本场训练还没回答足够多的问题，无法生成有效报告。请继续答题。");
+    } else {
+      showError("生成报告失败：Coach 暂时不可用，请稍后重试。");
+    }
     btn.disabled = false;
     btn.textContent = "重试生成报告";
   }
