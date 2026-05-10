@@ -196,3 +196,99 @@ function setOnboardingBusy(busy, label) {
   btn.disabled = busy;
   btn.textContent = busy ? (label || "...") : "发送";
 }
+
+// ============================================================
+// MATERIAL — parse → plan → start interview
+// ============================================================
+
+$("#btn-material-start").addEventListener("click", startInterviewFromMaterial);
+
+async function startInterviewFromMaterial() {
+  const text = $("#material-input").value.trim();
+  if (text.length < 50) {
+    setMaterialHint("请粘贴至少 50 字符的项目经历", "warn");
+    return;
+  }
+  if (!state.user_model) {
+    // user reached MATERIAL without onboarding (e.g. direct nav) — fall back
+    state.user_model = { ...DEMO_USER_MODEL, id: "fallback-user" };
+  }
+
+  setMaterialBusy(true, "Coach 正在解析项目...");
+  try {
+    const parsed = await postJson("/api/profile/parse", {
+      raw_project_text: text,
+    });
+    state.project_summary = parsed.project_summary;
+
+    setMaterialBusy(true, "Coach 正在制订训练计划...");
+    const plan = await postJson("/api/coach/plan", {
+      user_model: state.user_model,
+      project_summary: parsed.project_summary,
+    });
+    state.packet = plan.interview_packet;
+
+    setMaterialBusy(true, "Interviewer 正在准备第一问...");
+    const start = await postJson("/api/interviewer/start", {
+      interview_packet: state.packet,
+      user_model: state.user_model,
+    });
+    state.session_id = start.session_id;
+    state.current_state = start.state;
+    state.current_question = start.question;
+    state.current_focus_slots = start.focus_slots || [];
+    state.current_os = start.interviewer_os;
+    state.turns = [];
+
+    renderInterviewView();
+    switchView("interview");
+  } catch (e) {
+    setMaterialHint("出错：" + e.message, "warn");
+  } finally {
+    setMaterialBusy(false);
+  }
+}
+
+function setMaterialBusy(busy, label) {
+  const btn = $("#btn-material-start");
+  btn.disabled = busy;
+  btn.textContent = busy ? (label || "处理中...") : "开始面试";
+  if (busy && label) setMaterialHint(label, "info");
+}
+
+function setMaterialHint(text, kind /* 'info' | 'warn' */) {
+  const el = $("#material-hint");
+  el.textContent = text;
+  el.style.color = kind === "warn" ? "var(--warn)" : "var(--text-2)";
+}
+
+function renderInterviewView() {
+  const stageMap = {
+    "S1_motivation":  "S1 项目动机",
+    "S2_overview":    "S2 项目概述",
+    "S3_technical":   "S3 技术深挖",
+    "S4_validation":  "S4 实验验证",
+    "S5_reflection":  "S5 失败反思",
+    "S6_matching":    "S6 匹配与总结",
+    "done":           "面试结束",
+  };
+  $("#interview-stage").textContent =
+    stageMap[state.current_state] || state.current_state || "—";
+  $("#interview-focus").textContent =
+    (state.current_focus_slots || []).join(" / ") || "—";
+  $("#interview-question").textContent = state.current_question || "";
+  $("#interview-input").value = "";
+  hide("#interview-feedback");
+  hide("#cheat-panel");
+  if (state.current_os) {
+    show("#btn-cheat-toggle");
+    renderCheatPanel(state.current_os);
+  } else {
+    hide("#btn-cheat-toggle");
+  }
+  // ensure submit button visible / finish hidden at the start of each turn
+  show("#btn-interview-submit");
+  hide("#btn-finish");
+  $("#btn-interview-submit").disabled = false;
+  $("#btn-interview-submit").textContent = "提交回答";
+}
