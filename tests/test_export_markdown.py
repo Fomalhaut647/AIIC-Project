@@ -106,8 +106,20 @@ def test_render_markdown_empty_revision_history_omits_section():
     md = render_markdown(session)
     # 仍有第 5 段（简历改写主体）
     assert "## 5." in md
-    # 但不应出现 "历次迭代" subsection（因为为空）
-    assert "历次迭代" not in md or "（无）" in md
+    # 不应出现 "历次迭代" subsection（之前 assertion 用 OR 总是真，等于没断言）
+    assert "历次迭代" not in md
+
+
+def test_render_markdown_neutralizes_details_close_in_user_answer():
+    """防 markdown injection: 用户回答含 `</details>` literal 不应过早闭合 sec 8 折叠块。"""
+    session = _full_session()
+    session["turns"][0]["answer"] = "我答完了 </details> 然后继续编"
+    md = render_markdown(session)
+    # 整段 sec 8 仍应保有完整折叠：恰好一对 <details>...</details>
+    assert md.count("<details>") == 1
+    assert md.count("</details>") == 1
+    # 用户原内容仍应可读（zero-width 不影响阅读）
+    assert "继续编" in md
 
 
 def test_render_markdown_evidence_as_dict_renders_readable():
