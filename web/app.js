@@ -414,11 +414,13 @@ async function startReplay(parentSessionId, focusSlot) {
   if (state.current_os) {
     show("#btn-cheat-toggle");
     renderCheatPanel(state.current_os);
-    // Plan3.5 Imp 4: 抽屉默认 collapsed
-    hide("#cheat-panel");
+    // Plan3.6: panel 现在是常驻第 3 grid 列（不再 overlay），默认展开
+    show("#cheat-panel");
+    document.querySelector(".interview-layout")?.classList.remove("cheat-collapsed");
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
+    document.querySelector(".interview-layout")?.classList.add("cheat-collapsed");
   }
   $("#interview-transcript").innerHTML = "";
   // Plan3 G3: replay 模式同样自动朗读首问
@@ -851,12 +853,13 @@ function renderInterviewView() {
   if (state.current_os) {
     show("#btn-cheat-toggle");
     renderCheatPanel(state.current_os);
-    // Plan3.5 Imp 4: 抽屉默认 collapsed (不 auto-open)，让 OS 不再贴近 next question
-    // 用户主动点 tab 才展开。
-    hide("#cheat-panel");
+    // Plan3.6: panel 是常驻第 3 grid 列（不 overlay textarea），默认展开
+    show("#cheat-panel");
+    document.querySelector(".interview-layout")?.classList.remove("cheat-collapsed");
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
+    document.querySelector(".interview-layout")?.classList.add("cheat-collapsed");
   }
   // ensure submit button visible / finish hidden at the start of each turn
   show("#btn-interview-submit");
@@ -1004,50 +1007,58 @@ function showError(text) {
   show("#interview-feedback");
 }
 
-// ----- cheat drawer toggle + render (Plan3.5 Imp 4) -----
-// 抽屉默认 closed (.hidden). 点击 tab → toggle. 关闭方式: 再点 tab / drawer 内 X /
-// Esc. drawer body innerHTML 由 renderCheatPanel 注入并含一颗 .cheat-drawer-close.
+// ----- cheat panel toggle + render (Plan3.6: inline 第 3 grid 列, 默认展开) -----
+// 点击 sidebar toggle / panel 内 X / Esc 都收起 panel + 给 layout 加 .cheat-collapsed
+// 让主区拉宽。aria-pressed 跟随 open/close 同步; toggle 文字在 "收起 / 展开" 切换。
 
 $("#btn-cheat-toggle").addEventListener("click", () => {
   const panel = $("#cheat-panel");
+  const layout = document.querySelector(".interview-layout");
   panel.classList.toggle("hidden");
-  // tab 文字保持静态 ("🧠 偷看面试官脑回路")，不再随 open/close 切换
-  // a11y: 同步 aria-hidden / aria-pressed 给屏读用户
   const isOpen = !panel.classList.contains("hidden");
+  if (layout) layout.classList.toggle("cheat-collapsed", !isOpen);
   panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
-  $("#btn-cheat-toggle").setAttribute("aria-pressed", isOpen ? "true" : "false");
+  const btn = $("#btn-cheat-toggle");
+  btn.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  btn.textContent = isOpen ? "🧠 收起内心 OS" : "🧠 展开内心 OS";
 });
 
-// 抽屉内 X 关闭 (event delegation; renderCheatPanel 注入的 .cheat-drawer-close)
-// 关闭时把焦点归还 tab 按钮 (a11y: focus management)
+// panel 内 X 关闭 (event delegation; renderCheatPanel 注入的 .cheat-drawer-close)
+// 关闭时同步 layout class + 焦点归还 toggle 按钮 (a11y: focus management)
 document.getElementById("cheat-panel")?.addEventListener("click", (e) => {
   if (e.target.closest(".cheat-drawer-close")) {
     const panel = document.getElementById("cheat-panel");
+    const layout = document.querySelector(".interview-layout");
     panel.classList.add("hidden");
     panel.setAttribute("aria-hidden", "true");
+    if (layout) layout.classList.add("cheat-collapsed");
     const tab = document.getElementById("btn-cheat-toggle");
     if (tab) {
       tab.setAttribute("aria-pressed", "false");
+      tab.textContent = "🧠 展开内心 OS";
       tab.focus();
     }
   }
 });
 
-// Esc 关闭抽屉 (a11y; 与 replay-mini-modal Esc 不互踩——分别 match 自己 modal)
+// Esc 关闭 panel (a11y; 与 replay-mini-modal Esc 不互踩——分别 match 自己)
 // 命中后 return 不再 fall-through; 防御性: 万一两 modal 同开 (理论 view 互斥不该发生)
 // 也只关一个,用户再按 Esc 关下一个,符合栈式 modal 行为预期。
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   const panel = document.getElementById("cheat-panel");
   if (panel && !panel.classList.contains("hidden")) {
+    const layout = document.querySelector(".interview-layout");
     panel.classList.add("hidden");
     panel.setAttribute("aria-hidden", "true");
+    if (layout) layout.classList.add("cheat-collapsed");
     const tab = document.getElementById("btn-cheat-toggle");
     if (tab) {
       tab.setAttribute("aria-pressed", "false");
+      tab.textContent = "🧠 展开内心 OS";
       tab.focus();
     }
-    return;  // 命中 cheat-drawer 后停, 不再处理 mini-modal Esc
+    return;  // 命中 cheat-panel 后停, 不再处理 mini-modal Esc
   }
 });
 
