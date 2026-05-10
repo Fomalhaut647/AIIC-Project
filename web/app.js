@@ -51,6 +51,22 @@ const DEMO_USER_MODEL = {
   resume_issues: [],
 };
 
+// ---------- Plan2 P11: anonymous user_id (Spec D §3) ----------
+
+const USER_ID = (() => {
+  let id = null;
+  try {
+    id = localStorage.getItem("userId");
+  } catch (_) { /* private mode */ }
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    try { localStorage.setItem("userId", id); } catch (_) {}
+  }
+  return id;
+})();
+
 // ---------- DOM helpers ----------
 
 function $(sel) { return document.querySelector(sel); }
@@ -77,7 +93,8 @@ $("#btn-theme-toggle").addEventListener("click", () => {
 syncThemeIcon();
 
 function switchView(name) {
-  ["home", "onboarding", "material", "interview", "report"].forEach(v => {
+  // Plan2 P10/P11: profile is the 6th view
+  ["home", "onboarding", "material", "interview", "report", "profile"].forEach(v => {
     document.querySelector("#view-" + v).classList.add("hidden");
   });
   document.querySelector("#view-" + name).classList.remove("hidden");
@@ -85,10 +102,13 @@ function switchView(name) {
 }
 
 async function postJson(url, body) {
+  // Plan2 P11: 自动注入 user_id 字段（v2 endpoints 都接受可选 user_id, fallback "anonymous"）。
+  // 调用方仍按业务字段传 body, 不需要每次手写 user_id。
+  const bodyWithUser = { ...(body || {}), user_id: USER_ID };
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(bodyWithUser),
   });
   if (!resp.ok) {
     let detail = await resp.text();
@@ -116,6 +136,26 @@ async function postJson(url, body) {
   return resp.json();
 }
 
+async function apiGet(url) {
+  // Plan2 P11: GET helper, 与 postJson 错误格式一致, 调用方决定 .json() / .text()
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    let detail = await resp.text();
+    try {
+      const parsed = JSON.parse(detail);
+      if (typeof parsed.detail === "string") detail = parsed.detail;
+      else if (parsed.detail && typeof parsed.detail.message === "string") detail = parsed.detail.message;
+      else if (parsed.detail) detail = JSON.stringify(parsed.detail);
+      else detail = JSON.stringify(parsed);
+    } catch (_) {}
+    const err = new Error(`${resp.status}: ${detail}`);
+    err.status = resp.status;
+    err.detail = detail;
+    throw err;
+  }
+  return resp;  // 调用方决定 .json() / .text() / .blob()
+}
+
 // ---------- HOME → ONBOARDING / DEMO ----------
 
 $("#btn-start").addEventListener("click", () => {
@@ -141,6 +181,45 @@ $("#btn-demo").addEventListener("click", () => {
 $("#btn-onboarding-back").addEventListener("click", () => switchView("home"));
 $("#btn-material-back").addEventListener("click", () => switchView("home"));
 $("#btn-home").addEventListener("click", () => switchView("home"));
+
+// ---------- Plan2 P11: profile nav + dot ----------
+
+$("#nav-profile").addEventListener("click", async () => {
+  switchView("profile");
+  await loadProfile();
+});
+
+const _btnProfileBack = document.getElementById("btn-profile-back");
+if (_btnProfileBack) _btnProfileBack.addEventListener("click", () => switchView("home"));
+
+async function refreshProfileDot() {
+  // Show red dot on nav-profile if user has any persisted sessions.
+  // Best-effort: silently skip on network / 5xx so home view stays clean.
+  try {
+    const resp = await apiGet(`/api/users/${encodeURIComponent(USER_ID)}/profile`);
+    const profile = await resp.json();
+    const dot = document.getElementById("nav-profile-dot");
+    if (!dot) return;
+    if ((profile.total_sessions || 0) > 0) dot.classList.remove("hidden");
+    else dot.classList.add("hidden");
+  } catch (e) {
+    console.warn("refreshProfileDot failed", e);
+  }
+}
+
+// stub — full impl in P12
+async function loadProfile() {
+  const display = document.getElementById("profile-userid-display");
+  if (display) display.textContent = USER_ID.slice(0, 8);
+  // P12 will fetch + render. For now show empty state so the view isn't blank.
+  const empty = document.getElementById("profile-empty");
+  const content = document.getElementById("profile-content");
+  if (empty) empty.classList.remove("hidden");
+  if (content) content.classList.add("hidden");
+}
+
+// 启动后立刻探一次
+refreshProfileDot();
 
 // ---------- chat helper (used by onboarding wiring in C8) ----------
 
