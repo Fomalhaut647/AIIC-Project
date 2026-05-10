@@ -1,6 +1,7 @@
 """File parsing for project material uploads — Plan3 G1 (Spec E §7.3)."""
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -12,11 +13,15 @@ async def parse_file(path: Path, file_type: str) -> tuple[str, list[str]]:
 
     file_type 必须是 'pdf' | 'docx' | 'md' | 'txt'。
     PDF 加密 / 解析错误 → ValueError。
+
+    PyMuPDF / python-docx 是 sync 库，10MB 文件最坏阻塞 1-3s；用
+    asyncio.to_thread offload 到线程池避免阻塞 fastapi event loop。
+    md/txt 直读小开销，不上线程。
     """
     if file_type == "pdf":
-        return _parse_pdf(path)
+        return await asyncio.to_thread(_parse_pdf, path)
     if file_type == "docx":
-        return _parse_docx(path)
+        return await asyncio.to_thread(_parse_docx, path)
     if file_type in ("md", "txt"):
         return path.read_text(encoding="utf-8"), []
     raise ValueError(f"unsupported file_type: {file_type}")
