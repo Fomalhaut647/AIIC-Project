@@ -156,12 +156,16 @@ async def summarize_replay(
     turns_text = "\n\n".join(
         f"Q: {t.question}\nA: {t.answer}" for t in replay_turns
     )
+    # str.format() 把 `{x}` 当占位符。若用户回答里出现 literal `{...}`，未转义会触发
+    # KeyError → 静默走 except 分支（LLM 都没被调用过）。这里转义一次更稳。
+    turns_text_safe = turns_text.replace("{", "{{").replace("}", "}}")
+    focus_human = ", ".join(focus_slots)
 
     prompt = _SUMMARIZE_REPLAY_PROMPT.format(
-        focus_slots=", ".join(focus_slots),
+        focus_slots=focus_human,
         coverage_before=coverage_before,
         coverage_after=coverage_after,
-        turns_text=turns_text,
+        turns_text=turns_text_safe,
     )
 
     try:
@@ -172,10 +176,12 @@ async def summarize_replay(
             max_tokens=600,
         )
         sample = result.sample_good_answer or "未抓到亮眼回答"
-        next_step = result.next_step or f"继续围绕 {focus_slots} 多举具体例子"
+        next_step = result.next_step or f"继续围绕 {focus_human} 多举具体例子"
     except Exception:
+        # 不用 call_deepseek(fallback=...)：fallback 是静态值，但这里需要动态算
+        # coverage_after / delta_pp，所以走自己的 try/except 让降级文案能引用 focus_slots。
         sample = "（无法摘录，请回看原文）"
-        next_step = f"继续围绕 {', '.join(focus_slots)} 多举具体例子"
+        next_step = f"继续围绕 {focus_human} 多举具体例子"
 
     return ReplayMiniReport(
         parent_session_id=parent_meta.session_id,

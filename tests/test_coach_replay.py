@@ -130,3 +130,89 @@ async def test_summarize_replay_llm_failure_fallback():
     assert "无法摘录" in report.sample_good_answer or "回看原文" in report.sample_good_answer
     assert report.next_step  # 非空
     assert report.coverage_after == 1.0
+
+
+@pytest.mark.asyncio
+async def test_summarize_replay_empty_llm_fields_use_inline_fallback():
+    """LLM 返回 schema 合法但字段为空字符串 → 走 `or` fallback 文案，且 next_step
+    必须是人类可读 join 字符串（不是 list repr `['baseline']`）。"""
+    parent = SessionMeta(
+        session_id="parent-1", created_at=datetime.now(),
+        target=Target.BAOYAN, project_summary_short="X",
+    )
+    fake_llm = AsyncMock(return_value=_ReplaySummaryLLM(
+        sample_good_answer="",
+        next_step="",
+    ))
+    with patch("services.coach.call_deepseek", fake_llm):
+        report = await summarize_replay(
+            parent_meta=parent,
+            replay_session_id="r2",
+            replay_turns=[_turn(["baseline"])],
+            focus_slots=["baseline", "评估"],
+            coverage_before=0.5,
+        )
+
+    assert report.sample_good_answer == "未抓到亮眼回答"
+    # 关键：next_step 必须是 "baseline, 评估"，不能含 `[` 或 `'`（避免 list repr 漏给用户）
+    assert "baseline, 评估" in report.next_step
+    assert "[" not in report.next_step
+    assert "'" not in report.next_step
+
+
+@pytest.mark.asyncio
+async def test_summarize_replay_negative_delta_pp():
+    """Spec D §7.5: delta_pp 可为负（重练比原 session 还差）。"""
+    parent = SessionMeta(
+        session_id="parent-1", created_at=datetime.now(),
+        target=Target.BAOYAN, project_summary_short="X",
+    )
+    fake_llm = AsyncMock(return_value=_ReplaySummaryLLM(
+        sample_good_answer="...", next_step="...",
+    ))
+    with patch("services.coach.call_deepseek", fake_llm):
+        report = await summarize_replay(
+            parent_meta=parent,
+            replay_session_id="r3",
+            replay_turns=[_turn(["unrelated"])],   # focus 完全没覆盖 → coverage_after = 0
+            focus_slots=["baseline"],
+            coverage_before=1.0,                    # 原本 100%
+        )
+
+    assert report.coverage_after == 0.0
+    assert report.delta_pp == pytest.approx(-100.0, abs=0.1)
+
+
+@pytest.mark.asyncio
+async def test_summarize_replay_user_answer_with_braces_does_not_break_format():
+    """回归保护：用户回答里出现 `{...}` literal 时, str.format() 不应抛 KeyError 静默 fallback。"""
+    parent = SessionMeta(
+        session_id="parent-1", created_at=datetime.now(),
+        target=Target.BAOYAN, project_summary_short="X",
+    )
+
+    turn = InterviewTurn(
+        id="t", session_id="s", state=InterviewStage.S1_MOTIVATION,
+        question="q", answer="我用 {prompt_template} 注入做了一版 zero-shot",
+        score=0, covered_slots=["baseline"], missing_slots=[],
+        feedback="", next_question="", source="project",
+        interviewer_os={
+            "hidden_concern": "", "why_this_question": "",
+            "missing_slots": [], "what_i_want_to_hear": [], "risk_level": "低",
+        },
+    )
+    fake_llm = AsyncMock(return_value=_ReplaySummaryLLM(
+        sample_good_answer="ok", next_step="ok",
+    ))
+    with patch("services.coach.call_deepseek", fake_llm):
+        report = await summarize_replay(
+            parent_meta=parent,
+            replay_session_id="r4",
+            replay_turns=[turn],
+            focus_slots=["baseline"],
+            coverage_before=0.0,
+        )
+
+    # LLM 应当被真的调用过（不是 KeyError → except 分支）
+    assert fake_llm.await_count == 1
+    assert report.sample_good_answer == "ok"
