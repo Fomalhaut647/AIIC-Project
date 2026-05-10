@@ -185,7 +185,15 @@ async function sendOnboarding() {
       setTimeout(() => switchView("material"), 1200);
     }
   } catch (e) {
-    appendChat("coach", "（出错了）" + e.message);
+    // Demo-video safety: never spit raw HTTP status / network error in the
+    // coach bubble — it breaks the "polished assistant" voice on stage.
+    // Keep technical detail in console.error for debug (`F12 → Console` still
+    // shows the underlying e.message + stack).
+    console.error("coach.onboard failed:", e);
+    appendChat(
+      "coach",
+      "（Coach 暂时无法回应，可能是网络或后端波动。请重试上一句话。）",
+    );
   } finally {
     setOnboardingBusy(false);
   }
