@@ -9,3 +9,7 @@
 *.pem
 *.pfx
 *.p12
+
+# v2 runtime artifacts
+data/sessions/*.json
+logs/*.log
