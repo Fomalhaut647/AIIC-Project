@@ -2,10 +2,10 @@
 
 ## 项目概览
 
-- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7） + Plan3 多模态输入（G1-G5） + Plan3.5 polish pass（5 bugs + 5 improvements + STT API 切换）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D + Plan3 spec E）、[`docs/plans/`](docs/plans)（含 Plan2 plan + Plan3 plan）、[`docs/progress/`](docs/progress)（Plan2/Plan3/Plan3.5 实施回顾）、[`docs/plan4-brainstorm.md`](docs/plan4-brainstorm.md)（Plan4 候选 + 答辩素材草稿）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
+- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7） + Plan3 多模态输入（G1-G5） + Plan3.5 polish pass（5 bugs + 5 improvements + STT API 切换） + Plan3.6 layout fix（view-interview 3-col grid + OS panel 改 inline 列）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D + Plan3 spec E）、[`docs/plans/`](docs/plans)（含 Plan2 plan + Plan3 plan）、[`docs/progress/`](docs/progress)（Plan2/Plan3/Plan3.5 实施回顾）、[`docs/plan4-brainstorm.md`](docs/plan4-brainstorm.md)（Plan4 候选 + 答辩素材草稿）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
 - **v1 处置**：MiMo web chat 业务代码已归档到分支 `archive/web-chat-v1`，bootstrap commit `975a1f0` 从 main 删除（保留 pixi.toml / pytest.ini / .env / docs/ 等基础设施）
 - **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek + MiMo API；vanilla JS 单页前端 + Web Speech API；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
-- **代码规模**：main 上 v2 + Plan2 + Plan3 + Plan3.5 = bootstrap 后 ~110 commits；core modules: `services/` (Plan3 加 `tts.py` MiMo OpenAI 兼容 audio.speech + `file_parse.py` PDF/Word/MD/TXT 分发) + `server/main.py` (Plan3 加 `POST /api/uploads` + `POST /api/tts/synthesize`；与 Plan2 共享 `_SAFE_ID_RE` regex 但 status 400 vs 404 各 spec-correct 差异化) + `web/` (Plan3 加双独立 toggle 🎤/🔈 + 三 textarea mic 按钮 + view-material 上传按钮 + VoiceInput class + fetchAndPlayTTS) + `data/uploads/<user_id>/<file_id>.{ext,json}` (Plan3 上传持久化, .gitignore 屏蔽); 测试 **252 passes**（v2 baseline + Plan2 + Plan3 + Plan3.5；含 services/stt.py + endpoints_stt + Plan3.5 frontend 增量约 60 tests）
+- **代码规模**：main 上 v2 + Plan2 + Plan3 + Plan3.5 + Plan3.6 = bootstrap 后 ~110 commits；core modules: `services/` (Plan3 加 `tts.py` MiMo OpenAI 兼容 audio.speech + `file_parse.py` PDF/Word/MD/TXT 分发) + `server/main.py` (Plan3 加 `POST /api/uploads` + `POST /api/tts/synthesize`；与 Plan2 共享 `_SAFE_ID_RE` regex 但 status 400 vs 404 各 spec-correct 差异化) + `web/` (Plan3 加双独立 toggle 🎤/🔈 + 三 textarea mic 按钮 + view-material 上传按钮 + VoiceInput class + fetchAndPlayTTS；Plan3.6 view-interview 3-col grid + OS panel inline) + `data/uploads/<user_id>/<file_id>.{ext,json}` (Plan3 上传持久化, .gitignore 屏蔽); 测试 **257 passes**（v2 baseline + Plan2 + Plan3 + Plan3.5 + Plan3.6；含 services/stt.py + endpoints_stt + Plan3.5 frontend + Plan3.6 layout 增量约 65 tests）
 
 ### Plan2 5 个 features 速览（详见 `docs/progress/Plan2-report.md`）
 
@@ -30,9 +30,29 @@
 ### Plan3.5 polish pass 速览（详见 `docs/progress/Plan3.5-report.md`）
 
 - **5 bugs**：mic 椭圆 / 用户气泡对齐 / TTS 听不到（autoplay 3-stack）/ 内心 OS layout 隐式解 / STT 改 MediaRecorder+API
-- **5 improvements**：3-col layout（左 sidebar 阶段 + 反馈 / 中对话 / 右 OS 抽屉）/ 输入框加高 / humor_card 后端固定模板（删 LLM 调）
+- **5 improvements**：3-col layout（左 sidebar 阶段 + 反馈 / 中对话 / 右 OS）/ 输入框加高 / humor_card 后端固定模板（删 LLM 调）。**注意**：Plan3.5 的"右 OS"实施时是 `position: fixed` 滑入抽屉, **Plan3.6 改为常驻第 3 grid 列**（参见下方 Plan3.6 速览）
 - **STT 实施关键**：MiMo `/v1/audio/transcriptions` 不存在；用 `mimo-v2-omni` 多模态 via `/v1/chat/completions + input_audio` 字段；ffmpeg conda dep（pixi `ffmpeg = ">=8.1.1,<9"`）转码 webm/opus → wav 16kHz mono（MiMo 服务器只解码 mp3/flac/m4a/wav/ogg 不接 webm）
 - **PR workflow**：拆两 PR 并行（PR #5 backend / PR #6 frontend），各派 fresh reviewer 5-并行 + Haiku confidence scoring < 80 丢弃；PR #5 squash merge / PR #6 rebase merge（CLAUDE.md global 跨域多 commit 用 rebase）
+
+### Plan3.6 layout fix 速览（view-interview 3-col grid + OS panel inline）
+
+修复 Plan3.5 实施后两个 layout bug：
+
+- **Bug A（右侧空间浪费）**：`#app { max-width: 920px }` 把整页钳在 920px 中央 + `.interview-layout` 是 2-col grid（sidebar + main），右半屏黑色空白 30-40%。
+- **Bug B（OS panel overlay）**：`#cheat-panel` 用 `position: fixed; right: 0; transform: translateX` 滑入 drawer，**不参与 layout flow**，展开时遮挡 textarea + 提交按钮。
+
+修复方向：
+- `#view-interview` 用 CSS full-bleed 跳出 `#app` 920px 钳制（`width: 100vw; margin-left: calc(-50vw + 50%)`），仅作用于面试视图（其他视图不变）。`html, body { overflow-x: clip }` 防滚动条宽差导致横向溢出
+- `.interview-layout` 重写为 **3-col grid** `[sidebar 220-280px] [main 420-720px] [cheat-panel 280-380px]`，`max-width: 1500px; margin: 0 auto`
+- `#cheat-panel` 从 `position: fixed` drawer → `position: sticky; top: 24px` 内联 grid 列（删 transform / box-shadow / `.hidden { display: block !important }` override；改 `role="complementary"`）
+- `#btn-cheat-toggle` 从视口边缘 vertical tab → `.interview-sidebar` 内 inline button (`.cheat-toggle-inline`)
+- `.interview-layout.cheat-collapsed` class：用户主动 hide OS 时，grid 退化 2-col 让主区拉宽
+- 默认行为变更：`state.current_os` 存在时 panel **默认展开**（旧 drawer 时代默认收起因为会 overlay）
+- 响应式：`@media (max-width: 1024px)` panel 跳到第 2 行 `grid-column: 1 / -1`；`@media (max-width: 720px)` 单列堆叠
+
+DOM 契约保留（5 条硬约束）：所有 id / class / API / 数据流 / 依赖均不变。`#btn-cheat-toggle` `#cheat-panel` `.interview-layout` `.interview-sidebar` `.interview-main` 等 app.js 事件挂钩点全部保留。
+
+测试：在 `tests/test_web_dom_plan3.py` 加 5 条 DOM contract test（3-col grid / no `position: fixed` / no drawer-tab class / panel inside layout / toggle inside sidebar）。Total: **257 passes**（252 baseline + 5 layout）。
 
 ## 项目挑战说明（2026-05-09 主办方下发）
 
