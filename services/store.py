@@ -35,6 +35,10 @@ class SessionStore:
         self._dump_dir.mkdir(parents=True, exist_ok=True)
         (self.data_dir / "users").mkdir(parents=True, exist_ok=True)
         self._user_locks: dict[str, asyncio.Lock] = {}
+        # Plan2 P9 polish: per-session lock for read-modify-write of session JSON
+        # (e.g. /api/coach/resume_iterate appending to revision_history). Concurrent
+        # iterate calls without this lock would race + lose entries.
+        self._session_locks: dict[str, asyncio.Lock] = {}
 
     def create(self, packet: InterviewPacket, user_model: UserModel) -> str:
         sid = uuid.uuid4().hex
@@ -62,6 +66,18 @@ class SessionStore:
         (e.g. server/main.py review-hook attaches evaluation_report then persists)
         instead of reaching into the single-leading-underscore private method."""
         self._dump(session)
+
+    def session_lock(self, session_id: str) -> asyncio.Lock:
+        """Per-session asyncio.Lock; mirrors `_user_locks` pattern. Callers serialize
+        read-modify-write of the session JSON (e.g. resume_iterate appending revision)
+        by `async with store.session_lock(sid):` to prevent lost updates."""
+        return self._session_locks.setdefault(session_id, asyncio.Lock())
+
+    def register_session(self, session: InterviewSession) -> None:
+        """Cache an externally-built InterviewSession back into in-memory `_sessions`
+        so subsequent `get(sid)` finds it without re-parsing disk JSON. Used by
+        server/main.py `_load_session_anywhere` after a successful disk fallback."""
+        self._sessions[session.session_id] = session
 
     def load_session_dict(self, session_id: str) -> dict | None:
         """Load session JSON from disk as raw dict (for export rendering).

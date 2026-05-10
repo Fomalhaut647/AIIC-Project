@@ -124,6 +124,10 @@ def _load_session_anywhere(sid: str) -> InterviewSession | None:
     Plan2 P9: replay/finish + resume_iterate need session access that survives
     server restarts (in-memory store dropped) — disk dump is the source of truth
     after restart. Returning None signals 404 to the caller.
+
+    Polish: after a disk fallback succeeds, register the parsed session back into
+    `_sessions` via the public `register_session` so subsequent calls hit
+    in-memory cache instead of repeatedly parsing JSON.
     """
     if app.state.store is None:
         return None
@@ -133,7 +137,9 @@ def _load_session_anywhere(sid: str) -> InterviewSession | None:
         d = app.state.store.load_session_dict(sid)
         if d is None:
             return None
-        return InterviewSession.model_validate(d)
+        session = InterviewSession.model_validate(d)
+        app.state.store.register_session(session)
+        return session
 
 
 # Static frontend (web/ ↔ /static/*); index.html served at /.
@@ -560,6 +566,13 @@ async def api_interviewer_replay_finish(body: _ReplayFinishReq):
 
     parent_sid = session.packet.parent_session_id
     parent = _load_session_anywhere(parent_sid) if parent_sid else None
+    # 如果 parent_session_id 已被记录但磁盘上找不到 parent（被清缓存等），coverage_before
+    # 退化为 0 会让 delta_pp 假装是「全提升」误导用户。返回 404 让前端显式提示。
+    if parent_sid and parent is None:
+        raise HTTPException(
+            status_code=404,
+            detail="parent session referenced by this replay is no longer available",
+        )
 
     focus_slots = session.packet.replay_focus_slots
     parent_turns = parent.turns if parent else []
@@ -593,27 +606,30 @@ async def api_coach_resume_iterate(body: _ResumeIterateReq) -> ResumeRevision:
     """Spec D §6.1 / §8.2 — multi-round resume iteration."""
     if app.state.store is None:
         raise HTTPException(status_code=503, detail="store not ready")
-    session = _load_session_anywhere(body.session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="session not found")
-    if session.evaluation_report is None:
-        raise HTTPException(
-            status_code=409,
-            detail="session has no evaluation_report; call /api/coach/review first",
+    # Per-session lock：concurrent /resume_iterate on same session_id would race
+    # on revision_history append + missing_evidence overwrite. Lock keyed by sid.
+    async with app.state.store.session_lock(body.session_id):
+        session = _load_session_anywhere(body.session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        if session.evaluation_report is None:
+            raise HTTPException(
+                status_code=409,
+                detail="session has no evaluation_report; call /api/coach/review first",
+            )
+
+        rr = session.evaluation_report.resume_rewrite
+        iteration_index = len(rr.revision_history) + 1
+        revision = await iterate_resume(
+            original=rr.original,
+            prior_missing=list(rr.missing_evidence),
+            user_revised=body.user_revised_resume,
+            iteration_index=iteration_index,
         )
 
-    rr = session.evaluation_report.resume_rewrite
-    iteration_index = len(rr.revision_history) + 1
-    revision = await iterate_resume(
-        original=rr.original,
-        prior_missing=list(rr.missing_evidence),
-        user_revised=body.user_revised_resume,
-        iteration_index=iteration_index,
-    )
+        # Mutate session in-place + persist
+        rr.revision_history.append(revision)
+        rr.missing_evidence = list(revision.still_missing)
+        app.state.store.persist(session)
 
-    # Mutate session in-place + persist
-    rr.revision_history.append(revision)
-    rr.missing_evidence = list(revision.still_missing)
-    app.state.store.persist(session)
-
-    return revision
+        return revision

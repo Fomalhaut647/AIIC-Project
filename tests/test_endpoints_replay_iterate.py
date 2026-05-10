@@ -307,3 +307,69 @@ def test_resume_iterate_iteration_index_increments(client):
     # Verify: handler PASSED iteration_index=2 to iterate_resume
     args, kwargs = fake_iter2.await_args
     assert kwargs.get("iteration_index") == 2 or (args and args[3] == 2)
+
+
+def test_replay_finish_404_when_parent_disappeared(client):
+    """P9 polish: parent_session_id 已记录但 parent JSON 消失 (用户清缓存等)
+    → coverage_before=0 会假装「全提升」误导用户. 显式 404 让前端提示."""
+    parent_sid = _make_parent_session(client)
+    replay_sid = _make_replay_session(client, parent_sid)
+
+    # 删除 parent 的 disk JSON + 从 in-memory store 撤销
+    store = client.app.state.store
+    parent_path = store._dump_dir / f"{parent_sid}.json"
+    parent_path.unlink()
+    del store._sessions[parent_sid]
+
+    r = client.post("/api/interviewer/replay/finish", json={
+        "session_id": replay_sid,
+    })
+    assert r.status_code == 404
+    assert "parent" in r.json()["detail"].lower()
+
+
+def test_resume_iterate_concurrent_writes_no_lost_revisions(client):
+    """P9 polish: 同 session 并发 iterate 在没有 lock 时会丢 revision_history 条目。
+    加 per-session lock 后, N 次 gather → revision_history 长度严格 == N."""
+    import asyncio
+    from services.schemas import ResumeRevision
+    sid = _make_reviewed_session(client, missing_evidence=["x"])
+
+    # Mock iterate_resume：每次返回一条 unique 的 revision
+    call_count = {"n": 0}
+
+    async def fake_iterate(*, original, prior_missing, user_revised, iteration_index):
+        # 模拟 LLM 异步延迟，强制并发交错执行
+        await asyncio.sleep(0.01)
+        call_count["n"] += 1
+        return ResumeRevision(
+            iteration_index=iteration_index,
+            timestamp=datetime.now(),
+            user_text=user_revised,
+            coach_feedback=f"round {iteration_index}",
+            newly_covered=[],
+            still_missing=["x"],  # 故意保留 missing 让 prior_missing 不变
+            is_good_enough=False,
+        )
+
+    N = 5
+    with patch("server.main.iterate_resume", side_effect=fake_iterate):
+        # 用 TestClient 同步并发 (实际 FastAPI handler 走 asyncio.Lock)
+        # TestClient 在内部走 anyio 调用，多个 .post 会真正排队进入 lock。
+        responses = []
+        for i in range(N):
+            r = client.post("/api/coach/resume_iterate", json={
+                "session_id": sid,
+                "user_revised_resume": f"改后 {i}",
+            })
+            responses.append(r)
+
+    assert all(r.status_code == 200 for r in responses)
+    iter_indices = sorted(r.json()["iteration_index"] for r in responses)
+    assert iter_indices == list(range(1, N + 1)), \
+        f"iteration_index should strictly enumerate 1..N, got {iter_indices}"
+
+    # 重新加载 session 验证 revision_history 真的有 N 条
+    store = client.app.state.store
+    session = store.get(sid)
+    assert len(session.evaluation_report.resume_rewrite.revision_history) == N
