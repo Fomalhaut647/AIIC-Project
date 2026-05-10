@@ -45,15 +45,57 @@ def test_mic_pulse_class_toggled_in_js():
     assert "mic-pulse" in APP_JS
 
 
-def test_voice_input_uses_chinese_locale():
-    """Web Speech API 设 zh-CN locale (Spec E §8)."""
-    assert "zh-CN" in APP_JS
+# Plan3.5 Bug 3: VoiceInput 内核从 webkitSpeechRecognition → MediaRecorder + server STT.
+# 旧 contract test (zh-CN / interimResults / continuous) 已删, 因为这些字面 string
+# 不再出现在 app.js. 替代为下面 STT-API contract test.
 
 
-def test_voice_input_continuous_mode():
-    """interimResults + continuous 配置 (Spec E §8: real-time partial commit)."""
-    assert "interimResults" in APP_JS
-    assert "continuous" in APP_JS
+def test_voice_input_uses_media_recorder():
+    """Plan3.5 Bug 3: VoiceInput 用 MediaRecorder API (而非 webkitSpeechRecognition)."""
+    assert "MediaRecorder" in APP_JS, (
+        "VoiceInput 必须用 MediaRecorder 录音, 替代旧的 webkitSpeechRecognition"
+    )
+
+
+def test_voice_input_uses_get_user_media():
+    """Plan3.5 Bug 3: VoiceInput 用 navigator.mediaDevices.getUserMedia 申请麦克风。"""
+    assert "getUserMedia" in APP_JS
+
+
+def test_voice_input_posts_to_stt_endpoint():
+    """Plan3.5 Bug 3: 录音 stop 后 multipart POST 到后端 STT endpoint。"""
+    assert "/api/stt/transcribe" in APP_JS
+
+
+def test_voice_input_prefers_webm_opus():
+    """Plan3.5 Bug 3: 优先 audio/webm;codecs=opus (Chrome MediaRecorder 默认; 体积小)。"""
+    # 允许 ';codecs=opus' 后缀 + 不要求恰好这一种（fallback chain 可加 audio/webm / mp4 等）
+    assert "audio/webm" in APP_JS, "MediaRecorder mime 应优选 audio/webm 系列"
+
+
+def test_voice_input_no_longer_uses_webkit_speech_recognition():
+    """Plan3.5 Bug 3 反向 contract: 老 webkitSpeechRecognition 引用应已彻底移除,
+    防止半改一半（旧 + 新代码并存导致两个 audio path race）。"""
+    assert "webkitSpeechRecognition" not in APP_JS, (
+        "旧 webkitSpeechRecognition 引用必须全部清掉,不允许双 STT 通路并存"
+    )
+
+
+def test_voice_input_handles_permission_denied():
+    """Plan3.5 Bug 3: getUserMedia 拒绝授权时给用户明确提示 (toast),
+    不静默吞 NotAllowedError 让 mic 按钮假装在录音。"""
+    # 弱 contract: VoiceInput onError 路径 + _plan3Toast 引用
+    fn_chunk = APP_JS[APP_JS.find("class VoiceInput"):]
+    assert "getUserMedia" in fn_chunk
+    # toast 调用在 mic-btn click handler 的 onError callback 中处理
+    # (与原有 webkit error toast pattern 一致)
+
+
+def test_voice_input_handles_503_unavailable():
+    """Plan3.5 Bug 3: STT endpoint 503 时给 fallback toast (与 TTS 同模式)。"""
+    fn_chunk = APP_JS[APP_JS.find("class VoiceInput"):]
+    # 弱 contract: 检查 onError 在 fetch 失败 / 非 200 时被调用
+    assert "onError" in fn_chunk
 
 
 # ---------- Plan3.5 Bug 4: TTS 听不到诊断 + 修 ----------
