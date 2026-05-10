@@ -17,9 +17,20 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from services import coach
+from services.llm import call_deepseek
+from services.prompts import PROFILE_PARSE_SYSTEM
+from services.schemas import (
+    CoachPlanResult,
+    InterviewPacket,
+    OnboardResult,
+    UserModel,
+)
 
 
 def _git_short_hash() -> str:
@@ -86,3 +97,68 @@ async def healthz():
         "deploy_time": app.state.deploy_time,
         "provider": "deepseek",
     }
+
+
+# ============================================================
+# Coach endpoints — Spec C §2.2 / §2.3 / §2.4
+# ============================================================
+
+
+class _OnboardReq(BaseModel):
+    user_message: str
+    history: list[dict] = []
+
+
+@app.post("/api/coach/onboard", response_model=OnboardResult)
+async def api_coach_onboard(body: _OnboardReq) -> OnboardResult:
+    if not body.user_message.strip():
+        raise HTTPException(status_code=400, detail="user_message is empty")
+    return await coach.onboard(body.user_message, body.history)
+
+
+class _ParseReq(BaseModel):
+    raw_project_text: str
+
+
+class _ParseResp(BaseModel):
+    project_summary: str
+    technical_keywords: list[str]
+    possible_weaknesses: list[str]
+    likely_followup_directions: list[str]
+
+
+@app.post("/api/profile/parse", response_model=_ParseResp)
+async def api_profile_parse(body: _ParseReq) -> _ParseResp:
+    text = body.raw_project_text.strip()
+    if len(text) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="raw_project_text too short (need ≥ 50 chars)",
+        )
+    fallback = _ParseResp(
+        project_summary=text[:200],
+        technical_keywords=[],
+        possible_weaknesses=["项目原文过短或结构不清，无法自动抽取"],
+        likely_followup_directions=[],
+    )
+    result = await call_deepseek(
+        [
+            {"role": "system", "content": PROFILE_PARSE_SYSTEM},
+            {"role": "user", "content": text},
+        ],
+        response_schema=_ParseResp,
+        temperature=0.3,
+        fallback=fallback,
+    )
+    # call_deepseek returns T (the schema instance) when response_schema given.
+    return result if isinstance(result, _ParseResp) else fallback
+
+
+class _PlanReq(BaseModel):
+    user_model: UserModel
+    project_summary: str
+
+
+@app.post("/api/coach/plan", response_model=CoachPlanResult)
+async def api_coach_plan(body: _PlanReq) -> CoachPlanResult:
+    return await coach.plan(body.user_model, body.project_summary)
