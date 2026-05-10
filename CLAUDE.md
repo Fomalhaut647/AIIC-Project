@@ -2,10 +2,10 @@
 
 ## 项目概览
 
-- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D）、[`docs/plans/`](docs/plans)（含 Plan2 plan）、[`docs/progress/Plan2-report.md`](docs/progress/Plan2-report.md)（实施回顾）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
+- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7） + Plan3 多模态输入（G1-G5）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D + Plan3 spec E）、[`docs/plans/`](docs/plans)（含 Plan2 plan + Plan3 plan）、[`docs/progress/`](docs/progress)（Plan2/Plan3 实施回顾）、[`docs/plan4-brainstorm.md`](docs/plan4-brainstorm.md)（Plan4 候选 + 答辩素材草稿）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
 - **v1 处置**：MiMo web chat 业务代码已归档到分支 `archive/web-chat-v1`，bootstrap commit `975a1f0` 从 main 删除（保留 pixi.toml / pytest.ini / .env / docs/ 等基础设施）
-- **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek API；vanilla JS 单页前端；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
-- **代码规模**：main 上 v2 + Plan2 = bootstrap 后 ~74 commits；core modules: `services/` (后端智能；Plan2 加 `export.py` 渲 markdown + coach.py 加 `compute_replay_coverage / summarize_replay / iterate_resume` + interviewer.py 加 `build_replay_packet / should_advance_state / should_continue_replay` + store.py 加 `load_user_profile / update_user_profile (atomic+lock) / list_user_sessions / persist / load_session_dict / register_session / session_lock`) + `server/main.py` (FastAPI；Plan2 加 5 endpoint + 6 老 endpoint plumb user_id + review hook 写 user profile) + `web/` (前端 SPA；Plan2 加第 6 视图 view-profile + dashboard + 重练 UI + mini-report modal + resume iterate UI + .md 下载 + 全局 user_id localStorage) + `scripts/synthesize_questions.py` (离线题库合成) + `data/question_bank.{seed,synthetic}.json` (12 seed + 36 reviewed=true 合成题) + `data/users/<user_id>.json` (Plan2 持久化, .gitignore 屏蔽内容); 测试 **136 passes** (59 v2 baseline + 47 Plan2 unit + 27 Plan2 endpoint + 3 Plan2 integration smoke)
+- **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek + MiMo API；vanilla JS 单页前端 + Web Speech API；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
+- **代码规模**：main 上 v2 + Plan2 + Plan3 = bootstrap 后 ~100 commits；core modules: `services/` (Plan3 加 `tts.py` MiMo OpenAI 兼容 audio.speech + `file_parse.py` PDF/Word/MD/TXT 分发) + `server/main.py` (Plan3 加 `POST /api/uploads` + `POST /api/tts/synthesize`；与 Plan2 共享 `_SAFE_ID_RE` regex 但 status 400 vs 404 各 spec-correct 差异化) + `web/` (Plan3 加双独立 toggle 🎤/🔈 + 三 textarea mic 按钮 + view-material 上传按钮 + VoiceInput class + fetchAndPlayTTS) + `data/uploads/<user_id>/<file_id>.{ext,json}` (Plan3 上传持久化, .gitignore 屏蔽); 测试 **~200 passes**（v2 baseline + Plan2 增量 + Plan3 增量；Plan3 含 file_parse / tts_module / endpoints_uploads / endpoints_tts / web_dom / web_app / integration smoke 共 ~62 新 tests）
 
 ### Plan2 5 个 features 速览（详见 `docs/progress/Plan2-report.md`）
 
@@ -16,6 +16,16 @@
 | F4 简历多轮 | 报告页 textarea + 「让 Coach 看看」→ 不限轮次自然收敛 | `POST /api/coach/resume_iterate` (per-session lock 防并发 RMW) |
 | F5 .md 导出 | 报告页 + dashboard 时间线两处「下载 .md」按钮 | `GET /api/sessions/{id}/export.md` (text/markdown; charset=utf-8) |
 | F7 个人主页 | 全局 floating「我的训练」按钮 → view-profile 第 6 视图 | (前端自带，复用 F1 endpoint) |
+
+### Plan3 5 个 features 速览（详见 `docs/progress/Plan3-report.md`）
+
+| feature | 用户路径 | endpoint / 实现 |
+|---|---|---|
+| G1 文件上传 | view-material 上传按钮 → multipart POST → 解析回填 textarea + warnings | `POST /api/uploads` (PyMuPDF + python-docx + md/txt 直读；10MB 单文件 / 50MB user 配额；ext 白名单 .pdf .docx .md .txt) |
+| G2 STT 麦克风 | 三 textarea (onboarding / interview / resume_iterate) 旁 mic 按钮，pulse 红点 | Chrome 原生 `webkitSpeechRecognition`（lang=zh-CN, continuous, interimResults）；onend auto-restart；无后端 |
+| G3 TTS 朗读 | view-interview 出问题时 speaker on 自动 fetch → blob → Audio.play | `POST /api/tts/synthesize` 返 audio/mpeg；MiMo `mimo-v2.5-tts` (OpenAI 兼容 /v1/audio/speech)；503 fallback 静默降级 |
+| G4 双独立 toggle | nav header 🎤/🔈，默认 off + localStorage 持久化 + 中途切换立即停掉对应通道 | (前端 state，无 endpoint) |
+| G5 后端 TTS 封装 | 单调用入口 + retry-once on httpx.NetworkError + 缺 MIMO_API_KEY fail-fast | `services/tts.py:synthesize_speech` |
 
 ## 项目挑战说明（2026-05-09 主办方下发）
 
@@ -86,6 +96,8 @@
 - **SSL 证书到期 2026-08-05**（每 3 个月续签）；**证书 zip / `.env` / Basic Auth 口令绝禁 commit**（public 仓库 = 公开；曾误入两次后用 `git filter-branch` 全历史 sed-replace 清除）
 - **公网 IP 验证用 `curl -s -4 ifconfig.me`**：默认可能返回 IPv6，与 DNS A 不匹配
 - **临时解压证书后必须 `rm -rf` 清理**：私钥不能留在临时目录
+- **nginx `client_max_body_size` Plan3 后必须 ≥ 12M**：FastAPI 默认 multipart limit 没事，但 nginx 默认 1M 会先拦住；Plan3 G1 上传 10MB 文件留 margin 设 12M。检查：`sudo grep -rn client_max_body_size /etc/nginx/`；如未配在 server block 加一行 + `sudo nginx -t && sudo systemctl reload nginx`
+- **Plan3 PR review workflow（首用，与 Plan2 直接 main 不同）**：feature branch 在 `.worktrees/<name>` 隔离实施 → teammate `superpowers:finishing-a-development-branch` 自查 + `commit-commands:commit-push-pr` 开 PR → maintainer 派**新** teammate 激活 `code-review:code-review` 审 PR → implementer 用 `superpowers:receiving-code-review` 五步评估迭代 → reviewer APPROVED 后 maintainer 负责 `gh pr merge`（不让 implementer 自 merge）。Plan3 PR #4 走完 3 round 流程：22 commits + 2 review-fix；merge 用 `--rebase` 保留 commit 粒度（CLAUDE.md global 跨域多 commit 默认 rebase）
 
 ## 环境约定
 
