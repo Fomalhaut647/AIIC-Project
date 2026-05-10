@@ -54,3 +54,50 @@ def test_voice_input_continuous_mode():
     """interimResults + continuous 配置 (Spec E §8: real-time partial commit)."""
     assert "interimResults" in APP_JS
     assert "continuous" in APP_JS
+
+
+# ---------- Plan3.5 Bug 4: TTS 听不到诊断 + 修 ----------
+
+
+def test_toggle_speaker_immediately_speaks_on_turning_on():
+    """Plan3.5 Bug 4 fix: 翻 ON 时立即调 fetchAndPlayTTS(state.current_question),
+    避免用户翻开 toggle 后还要等下一轮才能听到声音。click 本身是 user gesture,
+    autoplay policy 不会 block。"""
+    # 弱 contract: 找到 toggle-speaker click handler 内 fetchAndPlayTTS + current_question 引用
+    # 用片段匹配,允许格式调整
+    handler_start = APP_JS.find('toggle-speaker")?.addEventListener("click"')
+    assert handler_start >= 0, "toggle-speaker click handler missing"
+    # handler 范围: 从 addEventListener 到下一个分号匹配段尾 / 下个顶级 listener
+    # 简单上限: 取后续 2KB 切片粗略验证内联引用
+    handler_chunk = APP_JS[handler_start:handler_start + 2000]
+    assert "fetchAndPlayTTS" in handler_chunk, (
+        "toggle-speaker handler 必须 inline 调用 fetchAndPlayTTS 让 ON 即时朗读"
+    )
+    assert "state.current_question" in handler_chunk, (
+        "toggle-speaker handler 必须 guard state.current_question (home view 没问题不读)"
+    )
+
+
+def test_fetch_and_play_tts_surfaces_autoplay_block():
+    """Plan3.5 Bug 4 fix: audio.play() reject 不再静默,通过 _plan3Toast 反馈给用户。"""
+    fn_start = APP_JS.find("async function fetchAndPlayTTS")
+    assert fn_start >= 0
+    fn_chunk = APP_JS[fn_start:fn_start + 3500]
+    assert "_plan3Toast" in fn_chunk, (
+        "fetchAndPlayTTS catch 应 surface autoplay block 给用户,不能静默吞 reject"
+    )
+
+
+def test_speaker_button_has_playing_visual_indicator():
+    """Plan3.5 Bug 4 fix: TTS 播放期间 speaker icon 加 .tts-playing 视觉反馈,
+    play()/ended/error 三处管理。"""
+    fn_chunk = APP_JS[APP_JS.find("async function fetchAndPlayTTS"):]
+    assert 'classList.add("tts-playing")' in fn_chunk
+    assert 'classList.remove("tts-playing")' in fn_chunk
+
+
+def test_styles_has_tts_playing_animation():
+    """tts-playing class 必须有对应 keyframe + style block。"""
+    css = (Path(__file__).parent.parent / "web" / "styles.css").read_text(encoding="utf-8")
+    assert "#toggle-speaker.tts-playing" in css
+    assert "@keyframes tts-pulse" in css
