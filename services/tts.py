@@ -17,7 +17,11 @@ async def synthesize_speech(
     timeout: float = 30.0,
 ) -> bytes:
     """Spec E §9.1 — 调 MiMo audio.speech。
-    成功返 audio bytes；失败 raise httpx 异常给上层。"""
+    成功返 audio bytes；失败 raise httpx 异常给上层。
+
+    Note: 仅 httpx.NetworkError 触发 retry；httpx.TimeoutException 不 retry
+    （timeout 通常意味服务端慢而非瞬态毛刺，retry 只会级联放大）。
+    """
     api_key = os.environ["MIMO_API_KEY"]  # 缺 → KeyError fail-fast
     base_url = os.environ.get("MIMO_BASE_URL", "https://token-plan-cn.xiaomimimo.com/v1")
     model = os.environ.get("MIMO_MODEL", "mimo-v2.5-tts")
