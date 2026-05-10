@@ -97,9 +97,27 @@ def test_should_continue_replay_until_focus_covered():
 
 
 def test_should_continue_replay_8_turn_hard_cap():
-    """超过 8 轮强制终止 (Spec D §7.6)."""
-    turns = [_turn(["unrelated"])] * 9
-    assert should_continue_replay(turns=turns, focus_slots=["baseline"]) is False
+    """>=8 轮强制终止 (Spec D §7.6). 验证边界 7/8/9。"""
+    # 反例：7 轮 + focus 未覆盖，应继续
+    turns_7 = [_turn(["unrelated"])] * 7
+    assert should_continue_replay(turns=turns_7, focus_slots=["baseline"]) is True
+    # 边界本身：恰好 8 轮也应终止
+    turns_8 = [_turn(["unrelated"])] * 8
+    assert should_continue_replay(turns=turns_8, focus_slots=["baseline"]) is False
+    # 超过 8 轮（9）也应终止
+    turns_9 = [_turn(["unrelated"])] * 9
+    assert should_continue_replay(turns=turns_9, focus_slots=["baseline"]) is False
+
+
+def test_build_replay_packet_rejects_empty_focus_slots():
+    """build_replay_packet 必须拒绝空 focus_slots（避免 0-turn replay）。"""
+    parent = _packet(focus_slots=["baseline"])
+    with pytest.raises(ValueError, match="focus_slot"):
+        build_replay_packet(
+            parent_packet=parent,
+            focus_slots=[],
+            parent_session_id="parent-1",
+        )
 
 
 def test_should_continue_replay_canonicalizes_slots():

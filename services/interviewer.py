@@ -320,7 +320,15 @@ def build_replay_packet(
     focus_slots: list[str],
     parent_session_id: str,
 ) -> InterviewPacket:
-    """Spec D §7.2 — 从 parent packet 派生 replay packet。"""
+    """Spec D §7.2 — 从 parent packet 派生 replay packet。
+
+    Raises:
+        ValueError: focus_slots 为空。replay session 必须至少指定一个槽位作目标，
+            否则 should_continue_replay 会立刻 False 终止（empty set 是 anything 的子集），
+            产生 0-turn replay session 浪费 LLM token + 用户疑惑。让 endpoint 层早 fail。
+    """
+    if not focus_slots:
+        raise ValueError("replay packet 至少需要一个 focus_slot；空列表会导致 0-turn replay")
     return parent_packet.model_copy(update={
         "replay_mode": True,
         "replay_focus_slots": list(focus_slots),
@@ -333,7 +341,10 @@ def should_advance_state(packet: InterviewPacket, latest_turn: InterviewTurn) ->
 
     NOTE: 这是一个 permission gate，独立于 v2 的 should_advance(session, turn)
     slot-coverage 判定。next_turn 内组合: advance = should_advance_state(...) and should_advance(...)
+    `latest_turn` 当前未使用，保留为参数是为了与 should_advance 签名对偶（未来可能基于 turn
+    内容更精细判定，例如「即便 replay 也允许 covered ⊇ focus 时 advance 到 DONE」）。
     """
+    del latest_turn  # reserved for future per-turn permission logic
     if packet.replay_mode:
         return False
     return True
@@ -344,7 +355,13 @@ def should_continue_replay(
     focus_slots: list[str],
 ) -> bool:
     """Spec D §7.6 — replay session 是否继续.
-    停止条件: (a) covered ⊇ focus，或 (b) turns >= 8 (hard cap)."""
+
+    停止条件: (a) covered ⊇ focus（_canon_slot lowercase+strip 后比较），
+    或 (b) turns >= REPLAY_TURN_HARD_CAP (8 轮硬截断).
+
+    NOTE: 当 focus_slots 为空时 set().issubset(anything) == True → 立即返回 False。
+    这意味着调用方有责任保证 focus_slots 非空（build_replay_packet 已 raise ValueError 拦截）。
+    """
     if len(turns) >= REPLAY_TURN_HARD_CAP:
         return False
     focus_canon = {_canon_slot(s) for s in focus_slots}
