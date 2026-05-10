@@ -1,5 +1,6 @@
 """DeepSeek (OpenAI-compatible) async client with JSON repair + fallback."""
 from __future__ import annotations
+import asyncio
 import json
 import logging
 import os
@@ -35,6 +36,14 @@ class LLMSchemaError(Exception):
     pass
 
 
+_NETWORK_RETRY_DELAY_S = 5.0
+_NETWORK_RETRYABLE = (
+    httpx.TimeoutException,  # 包含 ReadTimeout / ConnectTimeout / WriteTimeout / PoolTimeout
+    httpx.ConnectError,
+    httpx.RemoteProtocolError,
+)
+
+
 async def _post_chat(messages, temperature, max_tokens, *, json_mode: bool = False):
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}",
                "Content-Type": "application/json"}
@@ -51,6 +60,15 @@ async def _post_chat(messages, temperature, max_tokens, *, json_mode: bool = Fal
                                  headers=headers, json=body)
         resp.raise_for_status()
         return resp
+
+
+async def _post_chat_with_retry(messages, temperature, max_tokens, *, json_mode: bool = False):
+    """Spec §7: 网络超时 / ConnectError → sleep 5s 后 retry once；仍失败 → 抛出供上层 fallback。"""
+    try:
+        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode)
+    except _NETWORK_RETRYABLE:
+        await asyncio.sleep(_NETWORK_RETRY_DELAY_S)
+        return await _post_chat(messages, temperature, max_tokens, json_mode=json_mode)
 
 
 def _extract_content(resp) -> str:
@@ -75,7 +93,13 @@ async def call_deepseek(
         schema_json = json.dumps(response_schema.model_json_schema(), ensure_ascii=False)
         msgs[-1]["content"] = (msgs[-1]["content"]
                                + JSON_OUTPUT_INSTRUCTION.format(schema_json=schema_json))
-        resp = await _post_chat(msgs, temperature, max_tokens, json_mode=True)
+        try:
+            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=True)
+        except _NETWORK_RETRYABLE:
+            if fallback is not None:
+                _log(role, 0, False, True, started)
+                return fallback
+            raise
         content = _extract_content(resp)
         try:
             parsed = response_schema.model_validate_json(content)
@@ -89,8 +113,16 @@ async def call_deepseek(
                     original_output=content, error_message=str(e),
                 ),
             }
-            resp2 = await _post_chat([*msgs, {"role": "assistant", "content": content},
-                                      repair_msg], temperature, max_tokens, json_mode=True)
+            try:
+                resp2 = await _post_chat_with_retry(
+                    [*msgs, {"role": "assistant", "content": content}, repair_msg],
+                    temperature, max_tokens, json_mode=True,
+                )
+            except _NETWORK_RETRYABLE:
+                if fallback is not None:
+                    _log(role, 0, True, True, started)
+                    return fallback
+                raise
             content2 = _extract_content(resp2)
             try:
                 parsed = response_schema.model_validate_json(content2)
@@ -102,7 +134,13 @@ async def call_deepseek(
                     return fallback
                 raise LLMSchemaError(f"repair failed: {content2[:200]}")
     else:
-        resp = await _post_chat(msgs, temperature, max_tokens, json_mode=False)
+        try:
+            resp = await _post_chat_with_retry(msgs, temperature, max_tokens, json_mode=False)
+        except _NETWORK_RETRYABLE:
+            if fallback is not None:
+                _log(role, 0, False, True, started)
+                return fallback
+            raise
         content = _extract_content(resp)
         _log(role, len(content), False, False, started)
         return content
