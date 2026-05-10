@@ -375,11 +375,17 @@ textarea::placeholder { color: var(--text-2); }
   margin-top: 16px;
   width: 100%;
   font-weight: 600;
+  animation: cheat-pulse 2.4s ease-in-out 3;
 }
 .cheat-toggle:hover:not(:disabled) {
   background: rgba(88,166,255,0.06);
   border-color: var(--accent);
   border-style: dashed;
+  animation: none;
+}
+@keyframes cheat-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(88,166,255,0.0); }
+  50%      { box-shadow: 0 0 0 6px rgba(88,166,255,0.18); }
 }
 
 .cheat-panel {

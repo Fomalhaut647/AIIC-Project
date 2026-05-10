@@ -317,11 +317,13 @@ async function submitAnswer() {
     // Show feedback for the just-answered turn
     showFeedback(result.turn);
 
-    // Advance question state for the NEXT turn
+    // Advance question state for the NEXT turn.
+    // focus_slots is the *session-level* training focus from the InterviewPacket
+    // (set once at /interviewer/start) — it should NOT mutate per turn. The
+    // per-turn 'missing_slots' lives in turn.missing_slots and is rendered
+    // inside the feedback panel, not the banner.
     state.current_state = result.next_state;
     state.current_question = result.turn.next_question;
-    state.current_focus_slots = (result.turn.interviewer_os.missing_slots) ||
-                                state.current_focus_slots;
     state.current_os = result.turn.interviewer_os;
 
     if (!result.should_continue) {
@@ -380,6 +382,9 @@ function showFeedback(turn) {
     <div class="score">本轮 score: ${turn.score} / 100 · source: ${escapeHtml(turn.source)}</div>
   `;
   show("#interview-feedback");
+  // Make sure the user sees the score + missing slots — they're below the
+  // question card and easy to miss otherwise.
+  div.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function showError(text) {
