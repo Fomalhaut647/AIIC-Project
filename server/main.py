@@ -13,15 +13,13 @@ Lifespan responsibilities:
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import uuid
-
-import httpx
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -666,14 +664,10 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_USER_QUOTA = 50 * 1024 * 1024  # 50MB
 ALLOWED_EXTS = {"pdf", "docx", "md", "txt"}
 # 防 path-traversal：user_id 用作 FS 路径组件，必须严格白名单。
-# REBASE NOTE: main 已在 Plan2 milestone polish (df4328c) 加了等价的
-# `_SAFE_ID_RE` + `_validate_id_or_404(value, kind)` helper（位于 module 顶部）。
-# Q6 起手 rebase 时必须：
-#   1. 删本块 USER_ID_PATTERN 定义
-#   2. 把下面 `if not USER_ID_PATTERN.fullmatch(user_id)` 改用 `_validate_id_or_404(user_id, "user")`
-#   3. 把 tests/test_endpoints_uploads.py:152 的 `assert r.status_code == 400` → 404
-# 沿用 main 的 404 (而非 400) 是有意：避免 leak user 是否存在信号。
-USER_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,64}")
+# 复用 Plan2 milestone polish 加的 `_SAFE_ID_RE` regex 常量；但**不**用
+# `_validate_id_or_404` helper（那是为 GET path-arg endpoints 设计返 404）。
+# 本 endpoint 是 POST body Form field，invalid 用 400 Bad Request 更精确
+# （malformed client request ≠ resource not found）。tests 期待 400 不需改。
 
 
 @app.post("/api/uploads", response_model=UploadResponse)
@@ -689,7 +683,7 @@ async def upload_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail="filename missing")
 
-    if not USER_ID_PATTERN.fullmatch(user_id):
+    if not _SAFE_ID_RE.fullmatch(user_id):
         raise HTTPException(
             status_code=400,
             detail="invalid user_id (must be 1-64 chars from [A-Za-z0-9_-])",
