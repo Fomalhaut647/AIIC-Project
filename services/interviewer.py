@@ -56,12 +56,17 @@ def next_stage(current: InterviewStage) -> InterviewStage:
 
 def should_advance(session: InterviewSession, latest_turn: InterviewTurn) -> bool:
     required = set(REQUIRED_SLOTS[session.state])
+    if not required:
+        return True
+    # 必须计入 latest_turn.covered_slots —— 在 next_turn 中本函数被调用时
+    # latest_turn 尚未 append 进 session.turns（append_turn 在 should_advance 之后），
+    # 否则一个回答即使覆盖全部 required slots 也无法触发当轮推进，coverage 永远 lag 一轮。
     covered_in_state: set[str] = set()
+    if latest_turn.state == session.state:
+        covered_in_state.update(latest_turn.covered_slots)
     for t in session.turns:
         if t.state == session.state:
             covered_in_state.update(t.covered_slots)
-    if not required:
-        return True
     coverage = len(covered_in_state & required) / len(required)
     return coverage >= SLOT_COVERAGE_THRESHOLD
 

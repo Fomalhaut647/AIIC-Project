@@ -68,6 +68,37 @@ def test_is_vague_below_threshold():
     assert is_vague(turn2) is False
 
 
+def test_should_advance_counts_latest_turn_not_yet_appended():
+    """Reviewer #1 fix: should_advance must count latest_turn.covered_slots
+    even when latest_turn hasn't been appended to session.turns yet —
+    matches production call order in next_turn (advance is decided BEFORE
+    append_turn). Without this fix, coverage lags by one turn and a single
+    fully-covering answer cannot trigger advance on its own turn."""
+    session = _mk_session()
+    # session.turns is empty — production call order: next_turn calls
+    # should_advance with the brand-new turn before persisting it.
+    latest = _mk_turn(
+        InterviewStage.S1_MOTIVATION,
+        covered=REQUIRED_SLOTS[InterviewStage.S1_MOTIVATION][:4],
+    )
+    # 4 / 5 = 0.8 → 满足 threshold；但 turn 还没在 session.turns 里
+    assert should_advance(session, latest) is True
+
+
+def test_should_advance_combines_prior_turns_and_latest_turn():
+    """Latest turn covers some slots, prior turns cover others; union must hit threshold."""
+    session = _mk_session()
+    session.turns = [
+        _mk_turn(InterviewStage.S1_MOTIVATION, covered=["why_do", "target_user"])
+    ]
+    latest = _mk_turn(
+        InterviewStage.S1_MOTIVATION,
+        covered=["pain_real", "timing"],  # 两个新 slot
+    )
+    # union = 4 / 5 = 0.8 → 满足
+    assert should_advance(session, latest) is True
+
+
 def test_vague_counter_increments_and_resets():
     session = _mk_session()
     update_vague_counter(session, _mk_turn(InterviewStage.S1_MOTIVATION, [], score=20))
