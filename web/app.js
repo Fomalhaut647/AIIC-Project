@@ -291,4 +291,258 @@ function renderInterviewView() {
   hide("#btn-finish");
   $("#btn-interview-submit").disabled = false;
   $("#btn-interview-submit").textContent = "提交回答";
+  renderTranscript();
 }
+
+// ============================================================
+// INTERVIEW multi-turn — submit answer → next turn
+// ============================================================
+
+$("#btn-interview-submit").addEventListener("click", submitAnswer);
+
+async function submitAnswer() {
+  const answer = $("#interview-input").value.trim();
+  if (!answer) return;
+  const submit = $("#btn-interview-submit");
+  submit.disabled = true;
+  submit.textContent = "面试官在评估...";
+
+  try {
+    const result = await postJson("/api/interviewer/next", {
+      session_id: state.session_id,
+      answer: answer,
+    });
+    state.turns.push(result.turn);
+
+    // Show feedback for the just-answered turn
+    showFeedback(result.turn);
+
+    // Advance question state for the NEXT turn
+    state.current_state = result.next_state;
+    state.current_question = result.turn.next_question;
+    state.current_focus_slots = (result.turn.interviewer_os.missing_slots) ||
+                                state.current_focus_slots;
+    state.current_os = result.turn.interviewer_os;
+
+    if (!result.should_continue) {
+      // Interview ended — keep the feedback visible, swap submit→finish
+      hide("#btn-interview-submit");
+      show("#btn-finish");
+      $("#interview-stage").textContent = "面试结束";
+      $("#interview-question").textContent =
+        "本轮面试结束。点 [结束面试 → 看报告] 让 Coach 写复盘。";
+    } else {
+      // Re-render banner / question / cheat panel for next turn
+      $("#interview-stage").textContent = formatStage(state.current_state);
+      $("#interview-focus").textContent =
+        (state.current_focus_slots || []).join(" / ") || "—";
+      $("#interview-question").textContent = state.current_question || "";
+      $("#interview-input").value = "";
+      renderCheatPanel(state.current_os);
+      hide("#cheat-panel");
+      show("#btn-cheat-toggle");
+    }
+    renderTranscript();
+    submit.disabled = false;
+    submit.textContent = "提交回答";
+  } catch (e) {
+    showError("提交失败：" + e.message);
+    submit.disabled = false;
+    submit.textContent = "重试提交";
+  }
+}
+
+function formatStage(stage) {
+  const stageMap = {
+    "S1_motivation":  "S1 项目动机",
+    "S2_overview":    "S2 项目概述",
+    "S3_technical":   "S3 技术深挖",
+    "S4_validation":  "S4 实验验证",
+    "S5_reflection":  "S5 失败反思",
+    "S6_matching":    "S6 匹配与总结",
+    "done":           "面试结束",
+  };
+  return stageMap[stage] || stage || "—";
+}
+
+function showFeedback(turn) {
+  const div = $("#interview-feedback");
+  const missList = (turn.missing_slots || []).map(s =>
+    `<span class="miss">${escapeHtml(s)}</span>`
+  ).join(" ");
+  const coveredList = (turn.covered_slots || []).map(s =>
+    escapeHtml(s)
+  ).join("、");
+  div.innerHTML = `
+    <div><b>面试官反馈：</b>${escapeHtml(turn.feedback || "（无反馈）")}</div>
+    ${missList ? `<div style="margin-top:10px"><b>缺失槽位：</b>${missList}</div>` : ""}
+    ${coveredList ? `<div style="margin-top:6px;color:var(--good)"><b>已覆盖：</b>${coveredList}</div>` : ""}
+    <div class="score">本轮 score: ${turn.score} / 100 · source: ${escapeHtml(turn.source)}</div>
+  `;
+  show("#interview-feedback");
+}
+
+function showError(text) {
+  const div = $("#interview-feedback");
+  div.innerHTML = `<div style="color:var(--bad)"><b>${escapeHtml(text)}</b></div>`;
+  show("#interview-feedback");
+}
+
+// ----- cheat panel toggle + render -----
+
+$("#btn-cheat-toggle").addEventListener("click", () => {
+  const panel = $("#cheat-panel");
+  const visible = !panel.classList.contains("hidden");
+  if (visible) {
+    panel.classList.add("hidden");
+    $("#btn-cheat-toggle").textContent = "▶ 偷看面试官脑回路（作弊模式）";
+  } else {
+    panel.classList.remove("hidden");
+    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
+  }
+});
+
+function renderCheatPanel(os) {
+  if (!os) return;
+  const panel = $("#cheat-panel");
+  const riskClass = ({ "低": "risk-low", "中": "risk-mid", "高": "risk-high" })
+                    [os.risk_level] || "risk-mid";
+  panel.className = "cheat-panel hidden " + riskClass;
+  panel.innerHTML = `
+    <h3>🔍 面试官内心 OS <span class="risk-badge">风险: ${escapeHtml(os.risk_level || "中")}</span></h3>
+    <p><b>真正担心：</b>${escapeHtml(os.hidden_concern)}</p>
+    <p><b>为什么追问：</b>${escapeHtml(os.why_this_question)}</p>
+    ${(os.missing_slots && os.missing_slots.length) ? `
+      <p><b>缺失槽位：</b></p>
+      <ul>${os.missing_slots.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>` : ""}
+    ${(os.what_i_want_to_hear && os.what_i_want_to_hear.length) ? `
+      <p><b>想听到的：</b></p>
+      <ul>${os.what_i_want_to_hear.map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ul>` : ""}
+  `;
+}
+
+// ----- transcript -----
+
+function renderTranscript() {
+  const div = $("#interview-transcript");
+  if (!state.turns.length) {
+    div.innerHTML = "";
+    return;
+  }
+  div.innerHTML = `
+    <h4>本场对话回顾（${state.turns.length} 轮）</h4>
+    ${state.turns.map((t, i) => `
+      <div class="turn">
+        <div class="q"><b>Q${i + 1}（${escapeHtml(formatStage(t.state))}）：</b>${escapeHtml(t.question)}</div>
+        <div class="a"><b>A：</b>${escapeHtml(t.answer)}</div>
+      </div>
+    `).join("")}
+  `;
+}
+
+// ============================================================
+// FINISH → REPORT
+// ============================================================
+
+$("#btn-finish").addEventListener("click", finishInterview);
+
+async function finishInterview() {
+  const btn = $("#btn-finish");
+  btn.disabled = true;
+  btn.textContent = "Coach 正在写报告...";
+  try {
+    const report = await postJson("/api/coach/review", {
+      session_id: state.session_id,
+    });
+    state.report = report;
+    renderReport(report);
+    switchView("report");
+  } catch (e) {
+    showError("生成报告失败：" + e.message);
+    btn.disabled = false;
+    btn.textContent = "重试生成报告";
+  }
+}
+
+function renderReport(r) {
+  const evidence = (r.evidence || []).map(e => `
+    <div class="evidence-card">
+      <div class="quote">"${escapeHtml(e.quote)}"</div>
+      <div class="problem"><b>问题：</b>${escapeHtml(e.problem)}</div>
+      <div class="suggestion"><b>建议：</b>${escapeHtml(e.suggestion)}</div>
+    </div>`).join("");
+
+  const danger = (r.dangerous_questions || []).map(q =>
+    `<li>${escapeHtml(q)}</li>`).join("");
+
+  const strengths = (r.strengths || []).map(s =>
+    `<li>${escapeHtml(s)}</li>`).join("");
+  const weaknesses = (r.weaknesses || []).map(s =>
+    `<li>${escapeHtml(s)}</li>`).join("");
+
+  const rr = r.resume_rewrite || {};
+  const missing = (rr.missing_evidence || []).length
+    ? `<div class="missing">仍缺：${rr.missing_evidence.map(escapeHtml).join("、")}</div>`
+    : "";
+
+  const planSteps = ((r.next_training_plan || {}).steps || []).map(s => `
+    <div class="plan-step">
+      <b>${escapeHtml(s.name)}</b>: ${escapeHtml(s.goal)}
+      <span class="why-now">${escapeHtml(s.why_now)}</span>
+    </div>`).join("");
+
+  $("#report-content").innerHTML = `
+    <section>
+      <h3>总分</h3>
+      <div class="score">${r.overall_score}<span class="score-suffix"> / 100</span></div>
+      <p>${escapeHtml(r.summary)}</p>
+      ${strengths ? `<p><b style="color:var(--good)">优点：</b></p><ul>${strengths}</ul>` : ""}
+      ${weaknesses ? `<p><b style="color:var(--warn)">短板：</b></p><ul>${weaknesses}</ul>` : ""}
+    </section>
+
+    <section>
+      <h3>关键证据（${(r.evidence || []).length} 处）</h3>
+      ${evidence || "<p>（本场无关键证据）</p>"}
+    </section>
+
+    <section>
+      <h3>最危险的追问</h3>
+      <ol>${danger}</ol>
+    </section>
+
+    <section class="resume-rewrite">
+      <h3>简历改写</h3>
+      <div class="original"><b>原文：</b>${escapeHtml(rr.original || "")}</div>
+      <div class="rewritten"><b>改写：</b>${escapeHtml(rr.rewritten || "")}</div>
+      ${missing}
+    </section>
+
+    <section>
+      <h3>下一轮训练计划 — 推荐 ${escapeHtml((r.next_training_plan || {}).recommended_next_step || "")}</h3>
+      <p>${escapeHtml((r.next_training_plan || {}).reason || "")}</p>
+      ${planSteps}
+    </section>
+
+    <section class="humor">
+      <h3>${escapeHtml((r.humor_card || {}).title || "今日 bug 报告")}</h3>
+      <pre>${escapeHtml((r.humor_card || {}).content || "")}</pre>
+    </section>
+  `;
+}
+
+// ----- replay (一键重练) -----
+
+$("#btn-replay").addEventListener("click", () => {
+  // Keep user_model + packet (so they don't redo onboarding); fresh session.
+  state.session_id = null;
+  state.turns = [];
+  state.current_state = null;
+  state.current_question = null;
+  state.current_os = null;
+  state.report = null;
+  // Re-fill the demo text if previously demo-ed; else leave whatever they typed
+  if (state.is_demo && !$("#material-input").value.trim()) {
+    $("#material-input").value = DEMO_PROJECT_TEXT;
+  }
+  switchView("material");
+});
