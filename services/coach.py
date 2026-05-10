@@ -263,9 +263,25 @@ async def iterate_resume(
             temperature=0.5,
             max_tokens=800,
         )
-        newly = list(result.newly_covered)
-        still = list(result.still_missing)
+        # 防 LLM 幻觉：丢弃不在 prior_missing 中的项；找回 LLM 漏报的项 → 进 still。
+        # 这样 newly ∪ still 在 prior_missing 内（不含幻觉），且 prior_missing 全被
+        # 分入 newly 或 still（不漏报）。
+        prior_set = set(prior_missing)
+        raw_newly = [x for x in result.newly_covered if x in prior_set]
+        raw_still = [x for x in result.still_missing if x in prior_set]
+        accounted = set(raw_newly) | set(raw_still)
+        # 优先尊重 newly 判定；漏报的 prior 项默认进 still。
+        forgotten = [x for x in prior_missing if x not in accounted]
+        newly = raw_newly
+        still = raw_still + forgotten
         feedback = result.coach_feedback or "（暂无具体反馈）"
+
+        # 退化情况：prior_missing 非空但 LLM 既没认下任何 newly 也没认下任何 still
+        # （filter 后两侧都空）。说明 LLM 没看懂 / 全是幻觉。当作降级，避免 false
+        # is_good_enough=True 让用户以为「过关」。
+        if prior_missing and not raw_newly and not raw_still:
+            still = list(prior_missing)
+            feedback = "Coach 未能给出有效评估。请检查修改是否覆盖了上一轮的反馈，或稍后重试。"
     except Exception:
         # Fallback：保守认为本轮没覆盖任何条目，让用户决定是否继续。
         newly = []
