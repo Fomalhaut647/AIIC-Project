@@ -8,8 +8,8 @@
 
 ProjectProbe 由两个 AI 角色组成：
 
-- **Coach（训练组长）**：了解你 + 制定训练路线 + 复盘 + 改简历
-- **Interviewer（面试官）**：模拟陌生复试老师 / 面试官，按状态机连续追问你的项目
+- **Coach（训练组长）**：了解你 + 制定训练路线 + 复盘 + 改简历 + **多轮迭代评估**（Plan2 F4）
+- **Interviewer（面试官）**：模拟陌生复试老师 / 面试官，按状态机连续追问你的项目，**支持薄弱项重练模式**（Plan2 F2）
 
 核心差异 vs 直接用 ChatGPT：
 
@@ -19,6 +19,10 @@ ProjectProbe 由两个 AI 角色组成：
 | 反馈具体性 | 经常抽象「建议更具体」 | 指出 missing slots + what_i_want_to_hear |
 | 元认知 | 不知道为什么被追问 | **作弊模式：偷看面试官脑回路** — 看到面试官在想什么 |
 | 训练路线 | 自己规划 | Coach 根据表现安排下一轮 |
+| **跨 session 记忆** | 每次重新粘项目 | **持久化 + 个人主页 dashboard 看历史训练** （Plan2 F1+F7） |
+| **薄弱项闭环** | 答完没下文 | **一键重练 + mini-report 量化覆盖度提升** （Plan2 F2） |
+| **简历改完验证** | 改完不知道好没 | **多轮迭代直到 missing_evidence 全覆盖** （Plan2 F4） |
+| **复盘留存** | 输出无结构 | **8 段 Markdown 导出（含面试官 OS）** （Plan2 F5） |
 
 ## 核心闭环（demo 路径）
 
@@ -33,9 +37,10 @@ ProjectProbe 由两个 AI 角色组成：
 ## 技术栈
 
 - **后端**：FastAPI + httpx + python-dotenv (Pixi-managed)
-- **前端**：单页 vanilla HTML/CSS/JS，无构建步骤
+- **前端**：单页 vanilla HTML/CSS/JS，无构建步骤；Plan2 加 6th view（个人主页 dashboard）+ mini-report modal + resume iterate UI
 - **LLM**：DeepSeek API（OpenAI 兼容）+ JSON repair retry + fallback 模板
-- **持久化**：in-memory dict + JSON 文件 dump（mock 工具，重启可丢 session）
+- **持久化**：in-memory dict + JSON 文件 dump；Plan2 加 `data/users/<user_id>.json` 用户聚合视图（atomic .tmp+rename + per-user asyncio.Lock）
+- **用户身份**：Plan2 加 anonymous user_id (localStorage uuid)；6 个 v2 endpoint 透传可选 user_id（默认 anonymous 向后兼容）
 - **题库**：12 hand-written seed + 离线 DeepSeek 合成扩展到 ~60 cards（reviewed=true 36 张进入运行时）
 - **部署**：systemd unit + Nginx 1.24 + TLS (TrustAsia DV) + Basic Auth
 
@@ -50,7 +55,7 @@ cp .env.example .env  # 填入 DEEPSEEK_API_KEY
 pixi install
 
 # 3. 跑测试
-pixi run test  # 59 tests pass
+pixi run test  # 136 tests pass (59 v2 baseline + 77 Plan2)
 
 # 4. 起服务（dev mode 带 reload）
 pixi run serve  # http://127.0.0.1:8000

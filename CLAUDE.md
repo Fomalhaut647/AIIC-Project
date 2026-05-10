@@ -2,10 +2,20 @@
 
 ## 项目概览
 
-- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官**已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)、[`docs/plans/`](docs/plans)。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
+- **当前阶段（2026-05-10）**：v2 ProjectProbe AI 模拟面试官 + **Plan2 长期训练闭环（F1/F2/F4/F5/F7）已实施 + 部署完成**，活跃在 `https://aiic.fomalhaut647.com`。设计 / 实施文档：[`docs/overview.md`](docs/overview.md)、[`docs/specs/`](docs/specs)（含 Plan2 spec D）、[`docs/plans/`](docs/plans)（含 Plan2 plan）、[`docs/progress/Plan2-report.md`](docs/progress/Plan2-report.md)（实施回顾）。原题：[`docs/2026-05-09_项目挑战说明.md`](docs/2026-05-09_项目挑战说明.md)
 - **v1 处置**：MiMo web chat 业务代码已归档到分支 `archive/web-chat-v1`，bootstrap commit `975a1f0` 从 main 删除（保留 pixi.toml / pytest.ini / .env / docs/ 等基础设施）
 - **类型 / 部署目标**：Python (Pixi)；FastAPI + httpx + DeepSeek API；vanilla JS 单页前端；通过 `https://aiic.fomalhaut647.com` 提供 web 服务（部署详情见 [`docs/deployment.md`](docs/deployment.md)）
-- **代码规模**：main 上 v2 = bootstrap 后 44 commits；core modules: `services/` (后端智能) + `server/main.py` (FastAPI) + `web/` (前端 SPA) + `scripts/synthesize_questions.py` (离线题库合成) + `data/question_bank.{seed,synthetic}.json` (12 seed + 36 reviewed=true 合成题)；测试 59 passes
+- **代码规模**：main 上 v2 + Plan2 = bootstrap 后 ~74 commits；core modules: `services/` (后端智能；Plan2 加 `export.py` 渲 markdown + coach.py 加 `compute_replay_coverage / summarize_replay / iterate_resume` + interviewer.py 加 `build_replay_packet / should_advance_state / should_continue_replay` + store.py 加 `load_user_profile / update_user_profile (atomic+lock) / list_user_sessions / persist / load_session_dict / register_session / session_lock`) + `server/main.py` (FastAPI；Plan2 加 5 endpoint + 6 老 endpoint plumb user_id + review hook 写 user profile) + `web/` (前端 SPA；Plan2 加第 6 视图 view-profile + dashboard + 重练 UI + mini-report modal + resume iterate UI + .md 下载 + 全局 user_id localStorage) + `scripts/synthesize_questions.py` (离线题库合成) + `data/question_bank.{seed,synthetic}.json` (12 seed + 36 reviewed=true 合成题) + `data/users/<user_id>.json` (Plan2 持久化, .gitignore 屏蔽内容); 测试 **136 passes** (59 v2 baseline + 47 Plan2 unit + 27 Plan2 endpoint + 3 Plan2 integration smoke)
+
+### Plan2 5 个 features 速览（详见 `docs/progress/Plan2-report.md`）
+
+| feature | 用户路径 | endpoint |
+|---|---|---|
+| F1 持久化 | localStorage userId 启动生成；review 完成后聚合 SessionMeta 到 `data/users/<id>.json` | `GET /api/users/{id}/profile` (200+empty default) + 6 老 POST 加可选 `user_id` |
+| F2 一键重练 | dashboard 时间线点「重练 X」→ interview banner → mini-report modal | `POST /api/interviewer/replay` + `POST /api/interviewer/replay/finish` |
+| F4 简历多轮 | 报告页 textarea + 「让 Coach 看看」→ 不限轮次自然收敛 | `POST /api/coach/resume_iterate` (per-session lock 防并发 RMW) |
+| F5 .md 导出 | 报告页 + dashboard 时间线两处「下载 .md」按钮 | `GET /api/sessions/{id}/export.md` (text/markdown; charset=utf-8) |
+| F7 个人主页 | 全局 floating「我的训练」按钮 → view-profile 第 6 视图 | (前端自带，复用 F1 endpoint) |
 
 ## 项目挑战说明（2026-05-09 主办方下发）
 
