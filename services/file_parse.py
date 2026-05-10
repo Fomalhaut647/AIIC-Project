@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import fitz  # PyMuPDF
+from docx import Document  # python-docx
 
 
 async def parse_file(path: Path, file_type: str) -> tuple[str, list[str]]:
@@ -38,8 +39,6 @@ def _parse_pdf(path: Path) -> tuple[str, list[str]]:
 
 def _parse_docx(path: Path) -> tuple[str, list[str]]:
     """python-docx 抽段落 + 表格。"""
-    from docx import Document
-
     warnings: list[str] = []
     doc = Document(str(path))
     parts: list[str] = []
