@@ -257,3 +257,32 @@ class ReplayMiniReport(BaseModel):
     delta_pp: float
     sample_good_answer: str
     next_step: str
+
+
+# ----------------- Plan3 多模态输入 -----------------
+
+class UploadedFile(BaseModel):
+    """Spec E §5.1 — 上传文件元数据；存到 data/uploads/<user_id>/<file_id>.json。"""
+    file_id: str
+    user_id: str
+    original_filename: str
+    file_type: Literal["pdf", "docx", "md", "txt"]
+    size_bytes: int
+    uploaded_at: datetime
+    parsed_text: str
+    parse_warnings: list[str] = Field(default_factory=list)
+
+
+class UploadResponse(BaseModel):
+    """Spec E §5.2 — POST /api/uploads 响应。"""
+    file_id: str
+    parsed_text: str
+    file_type: str
+    parse_warnings: list[str] = Field(default_factory=list)
+
+
+class TTSRequest(BaseModel):
+    """Spec E §5.3 — POST /api/tts/synthesize 入参。"""
+    text: str
+    voice: str = "default"
+    user_id: str = "anonymous"
