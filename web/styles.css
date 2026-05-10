@@ -1077,7 +1077,7 @@ textarea::placeholder { color: var(--text-2); }
   color: var(--accent);
 }
 .mic-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.55;  /* 与项目全局 button:disabled (line 227) opacity 一致 */
   cursor: not-allowed;
 }
 .mic-btn:focus-visible {
@@ -1092,8 +1092,11 @@ textarea::placeholder { color: var(--text-2); }
   animation: mic-pulse 1.2s ease-in-out infinite;
 }
 @keyframes mic-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(216, 80, 76, 0.55); }
-  50%      { box-shadow: 0 0 0 10px rgba(216, 80, 76, 0); }
+  /* rgba 字面对齐 dark theme --bad #f85149 (RGB 248,81,73)；keyframe box-shadow
+     无法用 var() 引用 CSS 变量颜色 alpha 通道。light theme 下也用 dark 的红
+     是有意：录音激活态是高视觉重点，统一用 dark --bad 不破坏 brand 红。 */
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.55); }
+  50%      { box-shadow: 0 0 0 10px rgba(248, 81, 73, 0); }
 }
 
 /* ----- responsive (mobile 让出 nav 空间) ----- */
