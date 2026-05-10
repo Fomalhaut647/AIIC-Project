@@ -156,7 +156,10 @@ class EvaluationReport(BaseModel):
     dangerous_questions: list[str] = Field(min_length=2, max_length=5)
     resume_rewrite: ResumeRewrite
     next_training_plan: TrainingPlan
-    humor_card: HumorCard
+    # Plan3.5 Imp 5: humor_card 由后端 review() 注入固定文案；schema 保留字段
+    # 但改为 Optional + None 默认，让 LLM 不必生成 (省 token + demo 一致性)。
+    # 前端 / export.py / 既有 tests 都已用 (r.humor_card or {}) 安全降级。
+    humor_card: HumorCard | None = None
 
 
 class OnboardResult(BaseModel):

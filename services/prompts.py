@@ -53,12 +53,8 @@ Turns: {turns_json}
 3. resume_rewrite.rewritten 要把面试中暴露的真实细节纳入，不能凭空捏造
 4. resume_rewrite.missing_evidence 列出改写后仍缺的证据点
 5. next_training_plan 必须给 ≥2 个 TrainingStep
-6. humor_card 规则（强约束）：
-   - 必须引用本轮真实暴露的具体 missing_slot
-   - 把它解释为「高价值 bug」/ 调试梗 / 数学梗 / 论文梗
-   - 不允许「加油，你一定行」类空泛鸡汤
-   - 结尾给一个具体的下一步动作
-7. preferred_style 影响语气；但 humor_card 的幽默基调不可削减
+6. preferred_style 影响整体语气
+7. humor_card 字段如存在，由后端注入固定文案——LLM 无需关心；可置 null 或省略
 """
 
 INTERVIEWER_SYSTEM = """\
