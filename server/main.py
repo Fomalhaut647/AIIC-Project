@@ -62,6 +62,21 @@ from services.schemas import (
 )
 from services.store import SessionNotFound
 
+# Plan2 milestone-review polish: path-traversal guard for path-segment IDs.
+# user_id 来源是前端 localStorage (crypto.randomUUID 36 字符 hex+dash, 或 anon-{ts}-{rand}
+# 或 "anonymous"); session_id 来源是 SessionStore.create() 生成的 uuid4().hex (32 字符).
+# 允许 [A-Za-z0-9_-]{1,64} 足以覆盖所有合法值, 拦掉 ../ %2F . 等遍历构造,
+# 防止恶意 client 用 user_id="../../etc/passwd" 让 SessionStore 读写任意路径。
+import re as _re
+_SAFE_ID_RE = _re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _validate_id_or_404(value: str, kind: str) -> None:
+    """Raise 404 if id is not safe path segment; preferred over 422 to avoid leaking
+    存在/不存在 信号 (与 missing user_id 走同一 endpoint 的 404 路径一致)."""
+    if not _SAFE_ID_RE.fullmatch(value):
+        raise HTTPException(status_code=404, detail=f"{kind} not found")
+
 
 def _git_short_hash() -> str:
     """Short SHA of HEAD; 'unknown' if git unavailable (e.g. running from tarball)."""
@@ -466,6 +481,7 @@ async def get_user_profile(user_id: str):
     something renderable even for first-time visitors."""
     if app.state.store is None:
         raise HTTPException(status_code=503, detail="store not initialised")
+    _validate_id_or_404(user_id, "user")
     profile = app.state.store.load_user_profile(user_id)
     return profile.model_dump(mode="json")
 
@@ -480,6 +496,7 @@ async def export_session_markdown(session_id: str):
     """
     if app.state.store is None:
         raise HTTPException(status_code=503, detail="store not initialised")
+    _validate_id_or_404(session_id, "session")
     session_dict = app.state.store.load_session_dict(session_id)
     if session_dict is None:
         raise HTTPException(status_code=404, detail="session not found")

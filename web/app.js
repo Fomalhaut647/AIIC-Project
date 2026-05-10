@@ -336,23 +336,27 @@ function renderProfile(profile) {
 }
 
 // 全局 click 委托：dashboard 上动态生成的按钮统一在这里 dispatch (避免 inline onclick)
-document.getElementById("view-profile").addEventListener("click", (e) => {
-  const t = e.target.closest("[data-action]");
-  if (!t) return;
-  const action = t.dataset.action;
-  if (action === "replay") {
-    e.preventDefault();
-    startReplay(t.dataset.parent, t.dataset.slot);  // P13
-  } else if (action === "download") {
-    // 走 downloadMarkdown 让 409/404 错误能 surface 给用户而不是浏览器静默
-    // 跳到一个空白 page 显示 server error。
-    e.preventDefault();
-    downloadMarkdown(t.dataset.sid);  // P14
-  } else if (action === "reuse") {
-    e.preventDefault();
-    reuseProject(t.dataset.name);  // P14
-  }
-});
+// Polish: null guard 保护 — 若 index.html 因模板降级 (error fallback page 等)
+// 没渲 view-profile DOM, 不应让整个 app.js 在加载时就 crash on null deref。
+const _viewProfileEl = document.getElementById("view-profile");
+if (_viewProfileEl) {
+  _viewProfileEl.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-action]");
+    if (!t) return;
+    const action = t.dataset.action;
+    if (action === "replay") {
+      e.preventDefault();
+      startReplay(t.dataset.parent, t.dataset.slot);  // P13
+    } else if (action === "download") {
+      // 走 downloadMarkdown 让 409/404 错误能 surface 给用户而不是浏览器静默
+      e.preventDefault();
+      downloadMarkdown(t.dataset.sid);  // P14
+    } else if (action === "reuse") {
+      e.preventDefault();
+      reuseProject(t.dataset.name);  // P14
+    }
+  });
+}
 
 // 空 state link
 const _emptyLink = document.getElementById("profile-empty-link");
@@ -577,22 +581,27 @@ async function downloadMarkdown(sessionId) {
   }
 }
 
-document.getElementById("export-md-btn").addEventListener("click", async (e) => {
-  if (!state.session_id) {
-    alert("当前没有可导出的 session");
-    return;
-  }
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  const original = btn.textContent;
-  btn.textContent = "下载中...";
-  try {
-    await downloadMarkdown(state.session_id);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = original;
-  }
-});
+// Polish: null guard mirrors view-profile pattern — view-report 在某些 fallback
+// template 下可能也缺，避免 module load 阶段 null deref 让整个 app 哑火。
+const _exportMdBtn = document.getElementById("export-md-btn");
+if (_exportMdBtn) {
+  _exportMdBtn.addEventListener("click", async (e) => {
+    if (!state.session_id) {
+      alert("当前没有可导出的 session");
+      return;
+    }
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = "下载中...";
+    try {
+      await downloadMarkdown(state.session_id);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  });
+}
 
 function reuseProject(name) {
   if (!name) return;

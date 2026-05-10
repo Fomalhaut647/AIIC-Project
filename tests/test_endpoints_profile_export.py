@@ -160,6 +160,38 @@ def test_export_markdown_filename_format(client):
     assert "score70" in fname  # _evaluation_report() 设的 overall_score
 
 
+def test_get_profile_rejects_path_traversal_user_id(client):
+    """Plan2 milestone-review polish: malicious user_id with `..` / `/` 应被早 fail
+    成 404, 不能让 SessionStore 读 data/users/ 之外的 .json 文件。"""
+    for evil in ["../etc/passwd", "..%2Fpasswd", "../../etc/hosts", "../sessions",
+                 "anonymous/../sessions/sess1", "x" * 65, ""]:
+        from urllib.parse import quote
+        r = client.get(f"/api/users/{quote(evil, safe='')}/profile")
+        # 早 fail 应当是 404 (不存在/不合法都 surface 同一信号)；不应 5xx 也不应
+        # 200 + 异常 profile dump
+        assert r.status_code in (404, 422), (evil, r.status_code, r.text)
+
+
+def test_export_markdown_rejects_path_traversal_session_id(client):
+    """同上，session_id 同样被 path-segment 验证拦截。"""
+    for evil in ["../sessions/sess1", "..%2Fpasswd", "x" * 65, ""]:
+        from urllib.parse import quote
+        r = client.get(f"/api/sessions/{quote(evil, safe='')}/export.md")
+        assert r.status_code in (404, 422), (evil, r.status_code, r.text)
+
+
+def test_get_profile_accepts_valid_user_id_shapes(client):
+    """合法 user_id (uuid / anonymous / anon-fallback) 应通过验证。"""
+    for ok in [
+        "550e8400-e29b-41d4-a716-446655440000",  # crypto.randomUUID 形态
+        "anonymous",
+        "anon-1234567890-abcdefghij",  # JS fallback
+        "a", "abc_123", "X" * 64,  # boundary
+    ]:
+        r = client.get(f"/api/users/{ok}/profile")
+        assert r.status_code == 200, (ok, r.status_code, r.text)
+
+
 def test_export_markdown_renders_training_plan_dict_readable(client):
     """回归: next_training_plan 是 TrainingPlan dict 不是 str；之前 f-string 直接
     把 dict 转成 Python repr 给用户看。修复后应渲染为可读 markdown。"""
