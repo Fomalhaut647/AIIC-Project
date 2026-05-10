@@ -434,6 +434,7 @@ function _hideReplayBanner() {
   if (banner) banner.classList.add("hidden");
 }
 
+/** Returns true if mini-report shown; false if failed (caller should display fallback UI). */
 async function finishReplay() {
   let mini;
   try {
@@ -443,7 +444,7 @@ async function finishReplay() {
   } catch (e) {
     console.error("finishReplay failed", e);
     alert("生成重练 mini-report 失败：" + (e.detail || e.message));
-    return;
+    return false;
   }
 
   document.getElementById("mini-focus").textContent = (mini.focus_slots || []).join("、");
@@ -458,8 +459,22 @@ async function finishReplay() {
 
   document.getElementById("mini-sample").textContent = mini.sample_good_answer || "—";
   document.getElementById("mini-next").textContent = mini.next_step || "—";
-  document.getElementById("replay-mini-modal").classList.remove("hidden");
+  const modal = document.getElementById("replay-mini-modal");
+  modal.classList.remove("hidden");
+  // a11y: 焦点移到 close 按钮 + Esc 关闭
+  const closeBtn = document.getElementById("mini-close");
+  if (closeBtn) closeBtn.focus();
+  return true;
 }
+
+// Esc 关闭 mini-report modal (a11y, P13 polish)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const modal = document.getElementById("replay-mini-modal");
+  if (modal && !modal.classList.contains("hidden")) {
+    document.getElementById("mini-close").click();
+  }
+});
 
 document.getElementById("mini-close").addEventListener("click", () => {
   document.getElementById("replay-mini-modal").classList.add("hidden");
@@ -562,20 +577,22 @@ async function downloadMarkdown(sessionId) {
   }
 }
 
-document.getElementById("export-md-btn").addEventListener("click", () => {
+document.getElementById("export-md-btn").addEventListener("click", async (e) => {
   if (!state.session_id) {
     alert("当前没有可导出的 session");
     return;
   }
-  downloadMarkdown(state.session_id);
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "下载中...";
+  try {
+    await downloadMarkdown(state.session_id);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
 });
-
-// dashboard timeline 上的「下载 .md」 anchor 之前是 native browser download；
-// 改成走 downloadMarkdown 让 409/404 错误能 surface 给用户。
-// 在 view-profile click 委托里 download branch 之前是 no-op，现在接管。
-function _fixupTimelineDownload() {
-  // 已在 view-profile click delegation 处理；此 hook 留给未来扩展。
-}
 
 function reuseProject(name) {
   if (!name) return;
@@ -846,12 +863,16 @@ async function submitAnswer() {
       $("#interview-stage").textContent = "面试结束";
       if (state.is_replay) {
         // Plan2 P13: replay session 自动跳到 mini-report (不走 review/coach)
-        $("#interview-question").textContent =
-          "重练完成。正在生成 mini-report...";
+        $("#interview-question").textContent = "重练完成。正在生成 mini-report...";
         renderTranscript();
-        submit.disabled = false;
-        submit.textContent = "提交回答";
-        await finishReplay();
+        // 关键: 不在这里 re-enable submit。如果 finishReplay 失败，alert 后保持
+        // submit 隐藏 + 把 question 改成「失败请回首页/重试」让用户有明确出路;
+        // 否则 state.is_replay=true 时再点 submit 会向已结束的 session 提交答案。
+        const ok = await finishReplay();
+        if (!ok) {
+          $("#interview-question").textContent =
+            "生成 mini-report 失败。请回到首页重试 (退出面试按钮在左上角)。";
+        }
         return;
       } else {
         show("#btn-finish");
