@@ -410,11 +410,12 @@ async function startReplay(parentSessionId, focusSlot) {
   hide("#interview-feedback");
   hide("#btn-finish");
   show("#btn-interview-submit");
+  renderStageOutline();  // Plan3.5 Imp 1
   if (state.current_os) {
     show("#btn-cheat-toggle");
     renderCheatPanel(state.current_os);
-    show("#cheat-panel");
-    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
+    // Plan3.5 Imp 4: 抽屉默认 collapsed
+    hide("#cheat-panel");
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
@@ -803,18 +804,41 @@ function setMaterialHint(text, kind /* 'info' | 'warn' */) {
   el.style.color = kind === "warn" ? "var(--warn)" : "var(--text-2)";
 }
 
+// Plan3.5 Imp 1: 6 阶段 outline (state-machine 顺序对齐 InterviewStage enum + interviewer.py _STAGE_ORDER)
+const STAGES = [
+  { key: "S1_motivation", label: "S1 项目动机" },
+  { key: "S2_overview",   label: "S2 项目概述" },
+  { key: "S3_technical",  label: "S3 技术深挖" },
+  { key: "S4_validation", label: "S4 实验验证" },
+  { key: "S5_reflection", label: "S5 失败反思" },
+  { key: "S6_matching",   label: "S6 匹配与总结" },
+];
+
+function renderStageOutline() {
+  // 渲染左侧 sidebar 的 stage 进度 outline。当前阶段高亮、已过阶段灰勾、未到阶段 ·
+  const el = document.getElementById("interview-stage-outline");
+  if (!el) return;
+  const cur = state.current_state;
+  const curIdx = STAGES.findIndex(s => s.key === cur);
+  // done 状态：所有 6 阶段都完成
+  const allDone = cur === "done" || curIdx === -1;
+  el.innerHTML = STAGES.map((s, i) => {
+    let cls, icon;
+    if (allDone) {
+      cls = "stage-done"; icon = "✓";
+    } else if (i < curIdx) {
+      cls = "stage-done"; icon = "✓";
+    } else if (i === curIdx) {
+      cls = "stage-current"; icon = "▸";
+    } else {
+      cls = "stage-pending"; icon = "·";
+    }
+    return `<li class="${cls}"><span class="stage-icon">${icon}</span><span class="stage-label">${escapeHtml(s.label)}</span></li>`;
+  }).join("");
+}
+
 function renderInterviewView() {
-  const stageMap = {
-    "S1_motivation":  "S1 项目动机",
-    "S2_overview":    "S2 项目概述",
-    "S3_technical":   "S3 技术深挖",
-    "S4_validation":  "S4 实验验证",
-    "S5_reflection":  "S5 失败反思",
-    "S6_matching":    "S6 匹配与总结",
-    "done":           "面试结束",
-  };
-  $("#interview-stage").textContent =
-    stageMap[state.current_state] || state.current_state || "—";
+  $("#interview-stage").textContent = formatStage(state.current_state);
   $("#interview-focus").textContent =
     (state.current_focus_slots || []).join(" / ") || "—";
   $("#interview-question").textContent = state.current_question || "";
@@ -823,8 +847,9 @@ function renderInterviewView() {
   if (state.current_os) {
     show("#btn-cheat-toggle");
     renderCheatPanel(state.current_os);
-    show("#cheat-panel");
-    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
+    // Plan3.5 Imp 4: 抽屉默认 collapsed (不 auto-open)，让 OS 不再贴近 next question
+    // 用户主动点 tab 才展开。
+    hide("#cheat-panel");
   } else {
     hide("#btn-cheat-toggle");
     hide("#cheat-panel");
@@ -834,6 +859,7 @@ function renderInterviewView() {
   hide("#btn-finish");
   $("#btn-interview-submit").disabled = false;
   $("#btn-interview-submit").textContent = "提交回答";
+  renderStageOutline();  // Plan3.5 Imp 1
   renderTranscript();
   // Plan3 G3: 若 speaker toggle 已开, 自动朗读当前问题
   _maybeSpeakCurrentQuestion();
@@ -900,16 +926,15 @@ async function submitAnswer() {
           "本轮面试结束。点 [结束面试 → 看报告] 让 Coach 写复盘。";
       }
     } else {
-      // Re-render banner / question / cheat panel for next turn
+      // Re-render sidebar / question / cheat panel for next turn
       $("#interview-stage").textContent = formatStage(state.current_state);
       $("#interview-focus").textContent =
         (state.current_focus_slots || []).join(" / ") || "—";
       $("#interview-question").textContent = state.current_question || "";
       $("#interview-input").value = "";
-      renderCheatPanel(state.current_os);
-      show("#cheat-panel");
+      renderStageOutline();  // Plan3.5 Imp 1
+      renderCheatPanel(state.current_os);  // 重填 drawer body 但维持当前开/合状态
       show("#btn-cheat-toggle");
-      $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
       // Plan3 G3: 自动朗读 next-turn 的新问题
       _maybeSpeakCurrentQuestion();
     }
@@ -944,23 +969,24 @@ function formatStage(stage) {
 }
 
 function showFeedback(turn) {
+  // Plan3.5 Imp 3: 反馈渲染到左侧 sidebar (而非主流下方)。槽位用 chip 样式区分
+  // 缺失 (橙) / 已覆盖 (绿)，让用户一眼看到 missing。score 上轮分数底排。
   const div = $("#interview-feedback");
   const missList = (turn.missing_slots || []).map(s =>
     `<span class="miss">${escapeHtml(s)}</span>`
   ).join(" ");
   const coveredList = (turn.covered_slots || []).map(s =>
-    escapeHtml(s)
-  ).join("、");
+    `<span class="covered-chip">${escapeHtml(s)}</span>`
+  ).join(" ");
   div.innerHTML = `
-    <div><b>面试官反馈：</b>${escapeHtml(turn.feedback || "（无反馈）")}</div>
-    ${missList ? `<div style="margin-top:10px"><b>缺失槽位：</b>${missList}</div>` : ""}
-    ${coveredList ? `<div style="margin-top:6px;color:var(--good)"><b>已覆盖：</b>${coveredList}</div>` : ""}
+    <div><b>反馈：</b>${escapeHtml(turn.feedback || "（无反馈）")}</div>
+    ${missList ? `<div><b>缺失槽位：</b><br>${missList}</div>` : ""}
+    ${coveredList ? `<div><b>已覆盖：</b><br>${coveredList}</div>` : ""}
     <div class="score">本轮 score: ${turn.score} / 100 · source: ${escapeHtml(turn.source)}</div>
   `;
   show("#interview-feedback");
-  // Make sure the user sees the score + missing slots — they're below the
-  // question card and easy to miss otherwise.
-  div.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Plan3.5: 不再 scrollIntoView — sidebar position:sticky 已让反馈始终可见 +
+  // 主流 question card 不会被滚走，用户看 next question 不丢上下文。
 }
 
 function showError(text) {
@@ -969,17 +995,29 @@ function showError(text) {
   show("#interview-feedback");
 }
 
-// ----- cheat panel toggle + render -----
+// ----- cheat drawer toggle + render (Plan3.5 Imp 4) -----
+// 抽屉默认 closed (.hidden). 点击 tab → toggle. 关闭方式: 再点 tab / drawer 内 X /
+// Esc. drawer body innerHTML 由 renderCheatPanel 注入并含一颗 .cheat-drawer-close.
 
 $("#btn-cheat-toggle").addEventListener("click", () => {
   const panel = $("#cheat-panel");
-  const visible = !panel.classList.contains("hidden");
-  if (visible) {
+  panel.classList.toggle("hidden");
+  // tab 文字保持静态 ("🧠 偷看面试官脑回路")，不再随 open/close 切换
+});
+
+// 抽屉内 X 关闭 (event delegation; renderCheatPanel 注入的 .cheat-drawer-close)
+document.getElementById("cheat-panel")?.addEventListener("click", (e) => {
+  if (e.target.closest(".cheat-drawer-close")) {
+    document.getElementById("cheat-panel").classList.add("hidden");
+  }
+});
+
+// Esc 关闭抽屉 (a11y; 与 replay-mini-modal Esc 同款风格)
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  const panel = document.getElementById("cheat-panel");
+  if (panel && !panel.classList.contains("hidden")) {
     panel.classList.add("hidden");
-    $("#btn-cheat-toggle").textContent = "▶ 偷看面试官脑回路（作弊模式）";
-  } else {
-    panel.classList.remove("hidden");
-    $("#btn-cheat-toggle").textContent = "▼ 收起作弊模式";
   }
 });
 
@@ -988,9 +1026,13 @@ function renderCheatPanel(os) {
   const panel = $("#cheat-panel");
   const riskClass = ({ "低": "risk-low", "中": "risk-mid", "高": "risk-high" })
                     [os.risk_level] || "risk-mid";
-  panel.className = "cheat-panel hidden " + riskClass;
+  // 保留 .hidden 状态：renderCheatPanel 只填 body, 不强制 open/close (上层调用方决定)
+  const wasHidden = panel.classList.contains("hidden");
+  panel.className = "cheat-panel " + riskClass + (wasHidden ? " hidden" : "");
+  // Plan3.5 Imp 4: 抽屉里加 X 关闭按钮
   panel.innerHTML = `
-    <h3>🔍 面试官内心 OS <span class="risk-badge">风险: ${escapeHtml(os.risk_level || "中")}</span></h3>
+    <button class="cheat-drawer-close" type="button" aria-label="关闭抽屉" title="关闭 (Esc)">×</button>
+    <h3>🧠 面试官内心 OS <span class="risk-badge">风险: ${escapeHtml(os.risk_level || "中")}</span></h3>
     <p><b>真正担心：</b>${escapeHtml(os.hidden_concern)}</p>
     <p><b>为什么追问：</b>${escapeHtml(os.why_this_question)}</p>
     ${(os.missing_slots && os.missing_slots.length) ? `

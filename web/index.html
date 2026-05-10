@@ -110,41 +110,62 @@
     </div>
   </section>
 
-  <!-- INTERVIEW -->
+  <!-- INTERVIEW (Plan3.5 Imp 1+2+3+4 — 3-col layout: sidebar outline / main convo / right drawer OS) -->
   <section id="view-interview" class="view hidden">
     <div class="topbar"><button class="link" id="btn-interview-exit">← 退出面试</button></div>
-    <div class="interview-banner">
-      <div>
-        <span class="banner-label">当前阶段</span>
-        <span id="interview-stage" class="banner-value">…</span>
-      </div>
-      <div>
-        <span class="banner-label">重点</span>
-        <span id="interview-focus" class="banner-value">…</span>
-      </div>
+
+    <div class="interview-layout">
+      <!-- LEFT SIDEBAR: stage outline (Imp 1) + 本场重点 + 上轮反馈/槽位 (Imp 3) -->
+      <aside class="interview-sidebar" aria-label="面试进度与反馈">
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">阶段进度</h3>
+          <ol id="interview-stage-outline" class="stage-outline" aria-label="阶段进度"></ol>
+        </div>
+
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">本场重点</h3>
+          <div class="sidebar-banner-row">
+            <span class="banner-label">阶段</span>
+            <span id="interview-stage" class="banner-value">…</span>
+          </div>
+          <div class="sidebar-banner-row">
+            <span class="banner-label">关注</span>
+            <span id="interview-focus" class="banner-value">…</span>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h3 class="sidebar-section-title">上一轮反馈</h3>
+          <div id="interview-feedback" class="sidebar-feedback hidden" aria-live="polite"></div>
+          <p id="feedback-empty-hint" class="sidebar-empty-hint">回答后会显示评分 / 槽位 / 反馈</p>
+        </div>
+      </aside>
+
+      <!-- MAIN: question card + composer + transcript -->
+      <main class="interview-main">
+        <div class="question-card">
+          <div class="question-tag">面试官</div>
+          <div id="interview-question" class="question-text"></div>
+        </div>
+
+        <div class="composer">
+          <div class="textarea-with-mic">
+            <textarea id="interview-input" placeholder="你的回答...（Enter 换行，Cmd+Enter 提交）" rows="6"></textarea>
+            <button class="mic-btn" data-target-textarea="interview-input" type="button" title="语音输入" aria-label="语音输入" disabled>🎤</button>
+          </div>
+          <button id="btn-interview-submit" class="primary">提交回答</button>
+        </div>
+
+        <button id="btn-finish" class="primary big hidden">结束面试 → 看报告</button>
+
+        <div id="interview-transcript" class="transcript"></div>
+      </main>
     </div>
 
-    <div class="question-card">
-      <div class="question-tag">面试官</div>
-      <div id="interview-question" class="question-text"></div>
-    </div>
-
-    <div class="composer">
-      <div class="textarea-with-mic">
-        <textarea id="interview-input" placeholder="你的回答...（Enter 换行，Cmd+Enter 提交）" rows="6"></textarea>
-        <button class="mic-btn" data-target-textarea="interview-input" type="button" title="语音输入" aria-label="语音输入" disabled>🎤</button>
-      </div>
-      <button id="btn-interview-submit" class="primary">提交回答</button>
-    </div>
-
-    <div id="interview-feedback" class="feedback hidden"></div>
-
-    <button id="btn-cheat-toggle" class="cheat-toggle hidden">▶ 偷看面试官脑回路（作弊模式）</button>
-    <div id="cheat-panel" class="cheat-panel hidden"></div>
-
-    <button id="btn-finish" class="primary big hidden">结束面试 → 看报告</button>
-
-    <div id="interview-transcript" class="transcript"></div>
+    <!-- RIGHT DRAWER: 面试官内心 OS (Imp 4: 默认 collapsed 窄 tab，点击展开侧抽屉) -->
+    <!-- btn-cheat-toggle 复用既有 id (app.js 事件挂钩)，class 加 cheat-drawer-tab 切换为侧 tab 视觉 -->
+    <button id="btn-cheat-toggle" class="cheat-toggle cheat-drawer-tab hidden" type="button" title="偷看面试官脑回路" aria-label="切换面试官内心 OS 抽屉">🧠 偷看面试官脑回路</button>
+    <aside id="cheat-panel" class="cheat-panel hidden" aria-label="面试官内心 OS"></aside>
   </section>
 
   <!-- REPORT -->
