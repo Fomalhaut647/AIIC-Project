@@ -57,6 +57,25 @@ function $(sel) { return document.querySelector(sel); }
 function show(sel) { $(sel).classList.remove("hidden"); }
 function hide(sel) { $(sel).classList.add("hidden"); }
 
+// ---------- theme toggle ----------
+// Initial data-theme is set by inline script in <head> (avoids FOUC).
+// Here we only sync the button icon and wire click → toggle + persist.
+
+function syncThemeIcon() {
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  $("#btn-theme-toggle").textContent = cur === "dark" ? "☾" : "☀";
+}
+
+$("#btn-theme-toggle").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "dark";
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch (_) { /* private mode */ }
+  syncThemeIcon();
+});
+
+syncThemeIcon();
+
 function switchView(name) {
   ["home", "onboarding", "material", "interview", "report"].forEach(v => {
     document.querySelector("#view-" + v).classList.add("hidden");
@@ -223,6 +242,12 @@ function setOnboardingBusy(busy, label) {
 // ============================================================
 
 $("#btn-material-start").addEventListener("click", startInterviewFromMaterial);
+$("#material-input").addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    startInterviewFromMaterial();
+  }
+});
 
 async function startInterviewFromMaterial() {
   const text = $("#material-input").value.trim();
@@ -331,6 +356,12 @@ function renderInterviewView() {
 // ============================================================
 
 $("#btn-interview-submit").addEventListener("click", submitAnswer);
+$("#interview-input").addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    submitAnswer();
+  }
+});
 
 async function submitAnswer() {
   const answer = $("#interview-input").value.trim();
